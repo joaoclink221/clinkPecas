@@ -1,0 +1,101 @@
+@import 'tailwindcss';
+
+/* Automotive Intelligence Portal — tokens alinhados a DESIGN.md (Obsidian Gear) */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Foundation (neutrals) */
+  --color-surface: #10141a;
+  --color-surface-container-low: #181c22;
+  --color-surface-container-highest: #31353c;
+
+  /* Texto — nunca branco puro; on-surface principal */
+  --color-on-surface: #dfe2eb;
+  --color-on-surface-variant: #9aa3b2;
+
+  /* Acentos */
+  --color-primary: #4edea3;
+  --color-primary-container: #10b981;
+  --color-on-primary: #061c14;
+  --color-on-primary-container: #b8f5e0;
+
+  --color-secondary: #d2bbff;
+  --color-secondary-container: #362f4a;
+  --color-on-secondary-container: #e8ddff;
+
+  /* Erro / indisponível (badges) */
+  --color-error-container: #5c2f2f;
+  --color-on-error-container: #ffdad6;
+
+  /* Divisores discretos (ghost border) */
+  --color-outline-variant: #3c4a42;
+
+  /* Sombras — tom sobre tom, não “drop shadow” genérico */
+  --shadow-ambient: 0 24px 48px rgb(223 226 235 / 0.06);
+
+  /* Tipografia (Inter) */
+  --text-display-lg: 3.5rem;
+  --text-display-lg--line-height: 1.1;
+  --tracking-display-lg: -0.02em;
+
+  --text-headline-sm: 1.5rem;
+  --text-headline-sm--line-height: 1.3;
+
+  --text-body-md: 0.875rem;
+  --text-body-md--line-height: 1.5;
+
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.45;
+
+  --text-label-sm: 0.6875rem;
+  --text-label-sm--line-height: 1.25;
+  --tracking-label-sm: 0.05em;
+
+  /* Estados alinhados ao design system (badges / tabelas) */
+  --color-status-pending-bg: rgb(210 187 255 / 0.12);
+  --color-status-pending-fg: var(--color-secondary);
+  --color-status-pending-border: rgb(210 187 255 / 0.25);
+
+  --color-status-completed-bg: rgb(16 185 129 / 0.18);
+  --color-status-completed-fg: var(--color-primary);
+  --color-status-completed-border: rgb(78 222 163 / 0.35);
+
+  --color-status-cancelled-bg: rgb(255 180 171 / 0.12);
+  --color-status-cancelled-fg: var(--color-on-error-container);
+  --color-status-cancelled-border: rgb(255 180 171 / 0.22);
+
+  /* Aliases legados (evita quebrar imports antigos) */
+  --color-surface-base: var(--color-surface);
+  --color-surface-raised: var(--color-surface-container-low);
+  --color-surface-overlay: var(--color-surface-container-highest);
+  --color-fg-primary: var(--color-on-surface);
+  --color-fg-muted: var(--color-on-surface-variant);
+  --color-accent-green: var(--color-primary);
+  --color-accent-cyan: var(--color-secondary);
+  --color-border-subtle: rgb(60 74 66 / 0.15);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply min-h-dvh bg-surface font-sans text-body-md text-on-surface antialiased;
+  }
+}
+
+@layer utilities {
+  /* Gradiente de CTA (135°) — primary → primary-container */
+  .bg-primary-gradient {
+    background-image: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
+  }
+
+  .text-label-technical {
+    font-size: var(--text-label-sm);
+    line-height: var(--text-label-sm--line-height);
+    letter-spacing: var(--tracking-label-sm);
+    text-transform: uppercase;
+  }
+}

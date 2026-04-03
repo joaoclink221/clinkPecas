@@ -1,0 +1,5 @@
+/* Estilos locais do shell do App; tokens globais e tema em index.css (@theme). */
+
+#root {
+  isolation: isolate;
+}
