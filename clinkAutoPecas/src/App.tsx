@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 import { MainLayout } from '@/widgets/main-layout'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
+import { InventoryPage } from '@/pages/inventory/InventoryPage'
 import { ModulePlaceholderPage } from '@/pages/ModulePlaceholderPage'
 import { SalesPage } from '@/pages/sales/SalesPage'
 import { ROUTES } from '@/shared/constants/routes'
@@ -18,7 +19,7 @@ export default function App() {
           path={ROUTES.purchases.slice(1)}
           element={<ModulePlaceholderPage title="Compras" />}
         />
-        <Route path={ROUTES.stock.slice(1)} element={<ModulePlaceholderPage title="Estoque" />} />
+        <Route path={ROUTES.stock.slice(1)} element={<InventoryPage />} />
         <Route
           path={ROUTES.customers.slice(1)}
           element={<ModulePlaceholderPage title="Clientes" />}

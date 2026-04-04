@@ -1,73 +1,73 @@
-# React + TypeScript + Vite
+# clinkAutoPeças
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sistema de gestão para distribuidoras e oficinas de autopeças — painel administrativo (ERP lite) construído em React + TypeScript + Vite.
 
-Currently, two official plugins are available:
+## Módulos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Módulo | Rota | Descrição |
+|---|---|---|
+| Dashboard | `/` | KPIs, gráficos e feed de atividades recentes |
+| Vendas | `/vendas` | Tabela de vendas, filtros, paginação e criação de pedidos |
+| Estoque | `/estoque` | Controle de SKUs, alertas críticos e busca |
 
-## React Compiler
+## Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React 19** + **TypeScript**
+- **Vite** (build e dev server)
+- **Tailwind CSS v4** com design tokens customizados
+- **React Router DOM v7**
+- **Recharts** (gráficos)
+- **Vitest** + **React Testing Library** (testes)
 
-## Expanding the ESLint configuration
+## Como rodar
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# Instalar dependências
+npm install
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# Servidor de desenvolvimento (http://localhost:5173)
+npm run dev
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# Testes
+npm test
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Build de produção
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Documentação técnica
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+A documentação completa do projeto está disponível no site Docusaurus em `docs/`.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Iniciar o servidor de documentação (http://localhost:3000)
+cd docs
+npm start
+```
+
+A documentação cobre: visão geral, arquitetura, módulo de vendas, módulo de estoque e guia de contribuição.
+
+## Testes
+
+```bash
+# Modo watch
+npm test
+
+# Execução única
+npm run test -- --run
+```
+
+**330+ testes** cobrindo todos os componentes, hooks e integrações de página.
+
+## Estrutura do projeto
+
+```
+src/
+├── app/        # Providers globais
+├── features/   # Casos de uso isolados (auth)
+├── pages/      # Páginas por módulo (dashboard, inventory, sales)
+├── shared/     # UI genérica e utilitários
+└── widgets/    # Blocos de layout (Sidebar, Topbar)
+
+docs/           # Site de documentação (Docusaurus)
 ```
