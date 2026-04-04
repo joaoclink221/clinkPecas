@@ -355,6 +355,7 @@ describe('PurchasesPage — 5.x Paginação integrada', () => {
     const user = userEvent.setup()
     render(<PurchasesPage />)
 
+    await new Promise((r) => setTimeout(r, 350))
     await user.click(screen.getByRole('button', { name: /^página 2$/i }))
 
     // Página 1: PUR-8821, PUR-8845, PUR-8851, PUR-8799, PUR-8855
@@ -368,19 +369,23 @@ describe('PurchasesPage — 5.x Paginação integrada', () => {
     const user = userEvent.setup()
     render(<PurchasesPage />)
 
+    await new Promise((r) => setTimeout(r, 350))
     await user.click(screen.getByRole('button', { name: /^página 2$/i }))
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /^página 2$/i })).toHaveAttribute(
-        'aria-current',
-        'page',
-      )
-    })
+    // userEvent.click envolve act() — DOM está atualizado após await
+    expect(screen.getByRole('button', { name: /^página 2$/i })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
   })
 
   it('5.2 — filtrar por status reseta para página 1', async () => {
     const user = userEvent.setup()
     render(<PurchasesPage />)
+
+    // Aguarda o useEffect de debounce do mount inicial (DEBOUNCE_MS = 300ms) disparar,
+    // garantindo que setCurrentPage(1) não seja chamado APÓS a navegação para página 2.
+    await new Promise((r) => setTimeout(r, 350))
 
     // Navegar para página 2 (total: 15 registros, 3 páginas)
     await user.click(screen.getByRole('button', { name: /^página 2$/i }))
