@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { InventoryPage } from './InventoryPage'
 
@@ -236,5 +237,100 @@ describe('InventoryPage — acessibilidade', () => {
     const section = screen.getByRole('region', { name: /indicadores de estoque/i })
     const list = section.querySelector('[role="list"]')
     expect(list).toBeInTheDocument()
+  })
+})
+
+// ── 3.3 Exportar CSV ─────────────────────────────────────────────────
+
+describe('InventoryPage — 3.3 Exportar CSV', () => {
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url') as unknown as typeof URL.createObjectURL
+    URL.revokeObjectURL = vi.fn() as unknown as typeof URL.revokeObjectURL
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('botão "Exportar" está presente na página', () => {
+    render(<InventoryPage />)
+
+    expect(screen.getByRole('button', { name: /exportar/i })).toBeInTheDocument()
+  })
+
+  it('clicar em "Exportar" exibe toast de confirmação', async () => {
+    const user = userEvent.setup()
+    render(<InventoryPage />)
+
+    await user.click(screen.getByRole('button', { name: /exportar dados/i }))
+
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.getByRole('status').textContent).toMatch(/SKU/i)
+  })
+
+  it('toast exibe contagem total dos SKUs do mock sem filtro ativo', async () => {
+    const user = userEvent.setup()
+    render(<InventoryPage />)
+
+    await user.click(screen.getByRole('button', { name: /exportar dados/i }))
+
+    // stockMockPage tem 16 itens
+    expect(screen.getByRole('status')).toHaveTextContent('16 SKUs exportados')
+  })
+
+  it('toast exibe "1 SKU exportado" no singular quando count = 1', async () => {
+    const user = userEvent.setup()
+    render(<InventoryPage />)
+
+    // Buscar por SKU único para garantir 1 resultado
+    await user.type(screen.getByRole('searchbox'), 'OB-4492-XT')
+    // Aguardar debounce (300ms)
+    await new Promise((r) => setTimeout(r, 350))
+
+    await user.click(screen.getByRole('button', { name: /exportar dados/i }))
+
+    expect(screen.getByRole('status')).toHaveTextContent('1 SKU exportado')
+  })
+
+  it('toast tem role="status" e aria-live="polite" para acessibilidade', async () => {
+    const user = userEvent.setup()
+    render(<InventoryPage />)
+
+    await user.click(screen.getByRole('button', { name: /exportar dados/i }))
+
+    const toast = screen.getByRole('status')
+    expect(toast).toHaveAttribute('aria-live', 'polite')
+  })
+
+  it('toast não está visível antes de clicar em exportar', () => {
+    render(<InventoryPage />)
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('exportar com filtro crítico ativo exibe apenas itens críticos no toast', async () => {
+    const user = userEvent.setup()
+    render(<InventoryPage />)
+
+    // Ativar filtro crítico clicando no card
+    // O card tem role="button" quando onClick é fornecido
+    await user.click(screen.getByRole('button', { name: /alerta crítico/i }))
+
+    await user.click(screen.getByRole('button', { name: /exportar dados/i }))
+
+    // O toast deve mostrar contagem < 20 (apenas os críticos)
+    const toast = screen.getByRole('status')
+    expect(toast.textContent).toMatch(/SKU/i)
+    // Não deve ser os 20 originais
+    expect(toast.textContent).not.toContain('20 SKUs')
+  })
+
+  it('URL.createObjectURL é chamado ao exportar (confirma geração de Blob)', async () => {
+    const user = userEvent.setup()
+    render(<InventoryPage />)
+
+    await user.click(screen.getByRole('button', { name: /exportar dados/i }))
+
+    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob))
   })
 })

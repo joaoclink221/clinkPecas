@@ -9,7 +9,29 @@ Rota: `/estoque`
 
 ## Responsabilidades
 
-O módulo de Estoque permite visualizar, buscar, filtrar e paginar os SKUs do inventário. Exibe alertas visuais para itens com estoque abaixo do limiar crítico e oferece acesso rápido ao filtro de alertas via card KPI clicável.
+O módulo de Estoque permite visualizar, buscar, filtrar, paginar e exportar os SKUs do inventário. Exibe alertas visuais para itens com estoque abaixo do limiar crítico e oferece acesso rápido ao filtro de alertas via card KPI clicável. O botão **Exportar** gera um arquivo CSV dos itens filtrados diretamente no cliente.
+
+## Estrutura do módulo
+
+```
+src/pages/inventory/
+├── InventoryPage.tsx              ← Componente raiz (estado + layout + export handler)
+├── InventoryPage.test.tsx         ← Testes de integração
+├── InventoryKpiCard.tsx           ← Card KPI com variantes e interação opcional
+├── InventorySearchBar.tsx         ← Barra de busca + botão Exportar
+├── InventorySearchBar.test.tsx    ← Testes da barra de busca
+├── InventoryTable.tsx             ← Tabela 7 colunas, badges, toast histórico, kebab
+├── InventoryTable.test.tsx        ← Testes da tabela
+├── InventoryPagination.tsx        ← Navegação prev/next (sem numeração)
+├── InventoryPagination.test.tsx   ← Testes do componente de paginação
+├── exportInventoryToCsv.ts        ← Utilitário puro: serialização CSV + download + filename
+├── exportInventoryToCsv.test.ts   ← Testes unitários (25 casos)
+├── inventory.types.ts             ← Interfaces e enums do domínio
+├── mock-data.ts                   ← Array de 16 SKUs + objeto KPI mock
+└── mock-data.test.ts              ← Testes de integridade do mock
+```
+
+---
 
 ## Componentes
 
@@ -26,6 +48,7 @@ Componente raiz da rota `/estoque`. Gerencia todo o estado local do módulo.
 | `filtersOpen` | `boolean` | Reservado para painel de filtros avançados |
 | `criticalOnly` | `boolean` | Quando `true`, filtra apenas itens críticos |
 | `currentPage` | `number` | Página atual (padrão: 1) |
+| `toastMessage` | `string \| null` | Mensagem do toast transiente de exportação (3 s) |
 
 **Dados derivados (useMemo):**
 
@@ -53,6 +76,46 @@ Barra de busca controlada com input debounced + botões visuais.
 ```
 
 **Nota:** O debounce é responsabilidade da `InventoryPage` via `useDebounce`. O componente é puramente controlado.
+
+`handleExport` em `InventoryPage` chama `exportInventoryToCsv(filteredItems, buildInventoryCsvFilename())` e exibe um toast com a contagem de itens exportados. Usa `filteredItems` (não `pagedItems`) — o CSV respeita os filtros ativos (busca + `criticalOnly`).
+
+---
+
+## Utilitário `exportInventoryToCsv`
+
+`src/pages/inventory/exportInventoryToCsv.ts` — funções puras, sem efeitos colaterais além do download.
+
+### `serializeInventoryToCsv(items: StockItem[]): string`
+
+Converte array em CSV (RFC 4180):
+- **Cabeçalho**: `SKU ID,Nome,Categoria,Estoque Atual,Estoque Máx,Limiar Crítico,Fornecedor,Preço Unitário`
+- **Separador**: vírgula
+- **Escaping**: campos com vírgula/aspas/quebra de linha envolvidos em aspas duplas; aspas internas duplicadas
+- Array vazio → retorna apenas o cabeçalho
+
+### `buildInventoryCsvFilename(date?: Date): string`
+
+Gera nome no formato `inventario-YYYY-MM-DD.csv` usando `getUTC*` para consistência em qualquer fuso horário.
+
+### `exportInventoryToCsv(items: StockItem[], filename: string): number`
+
+1. Serializa via `serializeInventoryToCsv`
+2. Cria `Blob` com `type: 'text/csv;charset=utf-8;'`
+3. `URL.createObjectURL(blob)` → URL temporária
+4. Cria `<a>` oculto, `.click()`, remove do body
+5. `URL.revokeObjectURL(url)`
+6. Retorna `items.length` para o toast
+
+### Integração em `InventoryPage`
+
+```typescript
+function handleExport() {
+  const count = exportInventoryToCsv(filteredItems, buildInventoryCsvFilename())
+  showToast(`${count} ${count !== 1 ? 'SKUs exportados' : 'SKU exportado'}`)
+}
+```
+
+`filteredItems` é o array **completo filtrado** (não a página visível) — o CSV respeita busca textual e `criticalOnly` simultaneamente.
 
 ---
 
@@ -175,6 +238,16 @@ interface StockKpiMock {
   trendTotalSkus: number  // variação % MOM
 }
 ```
+
+---
+
+## Toast de exportação
+
+- Renderizado em `InventoryPage` com `role="status"` e `aria-live="polite"`
+- Posicionado fixo `bottom-6 right-6` (z-index 50)
+- Mensagem: `"X SKUs exportados"` / `"1 SKU exportado"` (pluralização pt-BR)
+- Desaparece após **3 segundos** via `setTimeout` com cleanup em `useRef`
+- Não visível antes de clicar em **Exportar**
 
 ---
 

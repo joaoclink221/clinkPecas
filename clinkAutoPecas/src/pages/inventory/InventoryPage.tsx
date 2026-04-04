@@ -1,9 +1,10 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { InventoryKpiCard } from './InventoryKpiCard'
 import { InventorySearchBar } from './InventorySearchBar'
 import { InventoryPagination } from './InventoryPagination'
 import { InventoryTable } from './InventoryTable'
+import { buildInventoryCsvFilename, exportInventoryToCsv } from './exportInventoryToCsv'
 import { stockKpiMock, stockMockPage } from './mock-data'
 import { useDebounce } from '../sales/useDebounce'
 
@@ -118,13 +119,33 @@ export function InventoryPage() {
   const rangeStart = totalDisplayCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, totalDisplayCount)
 
-  // 3.3 — exportar: sem lógica real nesta etapa
+  // 3.3 — exportar CSV filtrado (respeita criticalOnly + busca)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function showToast(message: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToastMessage(message)
+    toastTimer.current = setTimeout(() => setToastMessage(null), 3000)
+  }
+
   function handleExport() {
-    console.warn('Exportar: em breve')
+    const count = exportInventoryToCsv(filteredItems, buildInventoryCsvFilename())
+    showToast(`${count} ${count !== 1 ? 'SKUs exportados' : 'SKU exportado'}`)
   }
 
   return (
     <div className="flex flex-col gap-6">
+      {/* 3.3 — Toast transiente de exportação */}
+      {toastMessage ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 rounded-lg bg-surface-container-highest px-4 py-2.5 text-body-sm font-medium text-on-surface shadow-ambient"
+        >
+          {toastMessage}
+        </div>
+      ) : null}
 
       {/* ── 1.1 Header ──────────────────────────────────────────────────── */}
       <header className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">

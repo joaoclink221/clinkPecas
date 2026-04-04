@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'modulos/vendas',
         'modulos/estoque',
+        'modulos/compras',
       ],
     },
     'contribuindo',
