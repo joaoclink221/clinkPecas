@@ -5,6 +5,7 @@ import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { InventoryPage } from '@/pages/inventory/InventoryPage'
 import { ClientsPage } from '@/pages/clients/ClientsPage'
+import { FinancialPage } from '@/pages/financial/FinancialPage'
 import { ModulePlaceholderPage } from '@/pages/ModulePlaceholderPage'
 import { PurchasesPage } from '@/pages/purchases/PurchasesPage'
 import { SalesPage } from '@/pages/sales/SalesPage'
@@ -29,7 +30,7 @@ export default function App() {
         />
         <Route
           path={ROUTES.finance.slice(1)}
-          element={<ModulePlaceholderPage title="Financeiro" />}
+          element={<FinancialPage />}
         />
         <Route
           path={ROUTES.logistics.slice(1)}

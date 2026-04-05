@@ -1,7 +1,9 @@
 import { type ReactNode } from 'react'
 
 import type { BalanceFilter, EntityStatusFilter, EntityTypeFilter, KpiCardData } from './clients.types'
+import { ClientsPagination } from './ClientsPagination'
 import { EntityTable } from './EntityTable'
+import { buildEntitiesCsvFilename, exportEntitiesToCsv } from './exportEntitiesToCsv'
 import { entitiesMock } from './mock-data'
 import { useClientsFilters } from './useClientsFilters'
 
@@ -160,8 +162,20 @@ export function ClientsPage(): ReactNode {
     balanceFilter,
     setBalanceFilter,
     pagedEntities,
+    filteredEntities,
     filteredCount,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    pageSize,
   } = useClientsFilters(entitiesMock)
+
+  function handleExportCsv() {
+    exportEntitiesToCsv(filteredEntities, buildEntitiesCsvFilename())
+  }
+
+  const firstItem = filteredCount === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const lastItem = Math.min(currentPage * pageSize, filteredCount)
 
   return (
     <div className="relative flex flex-col gap-6">
@@ -249,7 +263,7 @@ export function ClientsPage(): ReactNode {
 
           {/* Botões */}
           <div className="flex items-center gap-3 self-start sm:self-auto">
-            <button type="button" className={secondaryBtn} aria-label="Exportar CSV">
+            <button type="button" className={secondaryBtn} aria-label="Exportar CSV" onClick={handleExportCsv}>
               <DownloadIcon />
               Export CSV
             </button>
@@ -292,6 +306,18 @@ export function ClientsPage(): ReactNode {
 
       {/* ── 3.x Tabela de entidades (4.x: recebe pagedEntities filtradas) ──────── */}
       <EntityTable entities={pagedEntities} />
+
+      {/* ── 5.x Rodapé de paginação ──────────────────────────────────────────── */}
+      <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+        <p className="text-body-sm text-on-surface-variant" aria-live="polite" aria-atomic="true">
+          Showing {firstItem} to {lastItem} of {filteredCount} entries
+        </p>
+        <ClientsPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      </div>
 
       {/* ── 1.4 Grid dos 4 cards KPI ──────────────────────────────────────── */}
       <section

@@ -19,6 +19,11 @@ src/pages/clients/
 ├── ClientsPage.test.tsx         ← Testes de integração (fases 1.x)
 ├── EntityTable.tsx              ← Tabela de entidades com 5 colunas (fases 3.x)
 ├── EntityTable.test.tsx         ← Testes de colunas, avatares, Financial Standing, dropdown
+├── ClientsPagination.tsx        ← Navegação paginada com elipses (fases 5.x)
+├── ClientsPagination.test.tsx   ← Testes de algoritmo, renderização e interações
+├── clientsPaginationUtils.ts    ← buildPageItems — algoritmo de elipses (puro, testável)
+├── exportEntitiesToCsv.ts       ← Serialização e download de entidades como CSV (fase 6.x)
+├── exportEntitiesToCsv.test.ts  ← Testes de serialização, escaping, filename e download
 ├── useClientsFilters.ts         ← Hook de filtragem + debounce + paginação (fases 4.x)
 ├── useClientsFilters.test.ts    ← Testes do hook (busca, toggle, filtros cumulativos)
 ├── clients.types.ts             ← Interfaces e unions do domínio
@@ -304,6 +309,61 @@ O componente `FilterDropdown` usa um `<select>` transparente (`opacity-0`) sobre
 
 ---
 
+---
+
+## Componente `ClientsPagination`
+
+**Arquivo:** `ClientsPagination.tsx`  
+**Utilitário:** `clientsPaginationUtils.ts` — `buildPageItems`
+
+Componente puramente apresentacional de navegação paginada. Toda a lógica de estado (`currentPage`, `totalPages`, `setCurrentPage`) vive no `useClientsFilters`.
+
+### Props
+
+| Prop | Tipo | Descrição |
+|---|---|---|
+| `currentPage` | `number` | Página atualmente ativa |
+| `totalPages` | `number` | Total de páginas calculado pelo hook |
+| `onPageChange` | `(page: number) => void` | Callback chamado ao clicar em qualquer botão de navegação |
+
+Retorna `null` quando `totalPages <= 1` (sem necessidade de paginação).
+
+### Algoritmo de elipses — `buildPageItems`
+
+Calcula a sequência de items visíveis. Retorna `number | null[]` onde `null` representa uma elipse (`…`).
+
+**Regras:**
+1. Sempre inclui página `1` e `totalPages`
+2. Inclui `currentPage - 1`, `currentPage`, `currentPage + 1` (dentro dos limites)
+3. Insere `null` nos gaps > 1 entre páginas consecutivas do conjunto
+
+**Exemplos:**
+
+| `currentPage` | `totalPages` | Resultado |
+|---|---|---|
+| 1 | 125 | `[1, 2, null, 125]` |
+| 5 | 125 | `[1, null, 4, 5, 6, null, 125]` |
+| 63 | 125 | `[1, null, 62, 63, 64, null, 125]` |
+| 125 | 125 | `[1, null, 124, 125]` |
+
+### Acessibilidade
+
+- `<nav role="navigation" aria-label="Paginação de entidades">`
+- Botões de página: `aria-label="Página N"`, `aria-current="page"` na ativa
+- Prev/Next: `disabled` quando nos limites; `aria-label` descritivo
+- Elipses: `<span aria-hidden>` — invisíveis para leitores de tela
+
+### Contador "Showing X to Y of Z entries"
+
+Calculado em `ClientsPage` com:
+```ts
+const firstItem = filteredCount === 0 ? 0 : (currentPage - 1) * pageSize + 1
+const lastItem  = Math.min(currentPage * pageSize, filteredCount)
+```
+Renderizado com `aria-live="polite"` e `aria-atomic="true"` para anunciar mudanças a leitores de tela.
+
+---
+
 ## Evolução planejada
 
 | Fase | Descrição | Status |
@@ -313,5 +373,6 @@ O componente `FilterDropdown` usa um `<select>` transparente (`opacity-0`) sobre
 | 2.2 | Mock data (15 entidades) | ✅ Concluído |
 | 3.1–3.4 | Tabela de entidades: 5 colunas, avatares, Financial Standing, dropdown | ✅ Concluído |
 | 4.1–4.3 | Busca, toggle e filtros cumulativos funcionais | ✅ Concluído |
-| 5.x | Modal de criação/edição de entidade | 🔲 Pendente |
-| 6.x | Export CSV das entidades filtradas | 🔲 Pendente |
+| 5.1–5.2 | Paginação numerada com elipses + contador "Showing X to Y of Z" | ✅ Concluído |
+| 6.1 | Export CSV das entidades filtradas | ✅ Concluído |
+| 7.x | Modal de criação/edição de entidade | 🔲 Pendente |
