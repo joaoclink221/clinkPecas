@@ -5,9 +5,11 @@ export type TopbarProps = {
   roleTitle: string
   /** Selo de autorização (ex.: Authorized). */
   clearanceLabel: string
+  /** Callback disparado ao clicar no avatar — abre o modal de perfil. */
+  onAvatarClick?: () => void
 }
 
-export function Topbar({ userName, roleTitle, clearanceLabel }: TopbarProps) {
+export function Topbar({ userName, roleTitle, clearanceLabel, onAvatarClick }: TopbarProps) {
   return (
     <header
       className="flex h-16 shrink-0 items-center gap-4 border-b border-outline-variant/15 bg-surface px-4 md:px-6"
@@ -34,10 +36,12 @@ export function Topbar({ userName, roleTitle, clearanceLabel }: TopbarProps) {
         >
           <BellIcon />
         </button>
-        <div
-          className="flex min-w-0 items-center gap-3 rounded-lg bg-surface-container-low py-1.5 pl-2 pr-3"
-          role="group"
-          aria-label="Perfil do usuário"
+        <button
+          type="button"
+          onClick={onAvatarClick}
+          className="flex min-w-0 items-center gap-3 rounded-lg bg-surface-container-low py-1.5 pl-2 pr-3 transition-colors hover:bg-surface-container-highest focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-label="Abrir perfil do funcionário"
+          aria-haspopup="dialog"
         >
           <div
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-container-highest text-label-sm font-bold text-primary"
@@ -56,7 +60,7 @@ export function Topbar({ userName, roleTitle, clearanceLabel }: TopbarProps) {
               {roleTitle} · {clearanceLabel}
             </span>
           </div>
-        </div>
+        </button>
       </div>
     </header>
   )

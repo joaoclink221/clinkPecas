@@ -9,6 +9,7 @@ import { FinancialPage } from '@/pages/financial/FinancialPage'
 import { ModulePlaceholderPage } from '@/pages/ModulePlaceholderPage'
 import { PurchasesPage } from '@/pages/purchases/PurchasesPage'
 import { SalesPage } from '@/pages/sales/SalesPage'
+import { WarrantyPage } from '@/pages/warranty/WarrantyPage'
 import { ROUTES } from '@/shared/constants/routes'
 
 export default function App() {
@@ -35,6 +36,10 @@ export default function App() {
         <Route
           path={ROUTES.logistics.slice(1)}
           element={<ModulePlaceholderPage title="Logística" />}
+        />
+        <Route
+          path={ROUTES.warranty.slice(1)}
+          element={<WarrantyPage />}
         />
       </Route>
     </Routes>

@@ -8,6 +8,7 @@ export const ROUTES = {
   suppliers: '/fornecedores',
   finance: '/financeiro',
   logistics: '/logistica',
+  warranty: '/garantia',
 } as const
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES]

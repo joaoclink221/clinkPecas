@@ -11,7 +11,7 @@ export const primaryNavItems: NavItem[] = [
   { to: ROUTES.purchases, label: 'Compras' },
   { to: ROUTES.stock, label: 'Estoque' },
   { to: ROUTES.customers, label: 'Clientes' },
-  { to: ROUTES.suppliers, label: 'Fornecedores' },
   { to: ROUTES.finance, label: 'Financeiro' },
   { to: ROUTES.logistics, label: 'Logística' },
+  { to: ROUTES.warranty, label: 'Garantia' },
 ]
