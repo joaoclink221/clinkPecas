@@ -1,5 +1,31 @@
 export type PaymentMethod = 'Pix' | 'Boleto' | 'Cartão' | 'Dinheiro'
 
+/** Forma de pagamento no formulário de nova venda */
+export type SaleFormPaymentMethod = 'pix' | 'cartao' | 'boleto' | 'faturado'
+
+/** Cliente disponível para seleção no formulário */
+export type Client = {
+  id: string
+  name: string
+}
+
+/** Produto disponível para inclusão na venda */
+export type Product = {
+  sku: string
+  name: string
+  /** Preço unitário em BRL */
+  unitPrice: number
+}
+
+/**
+ * Item de venda — subtotal é SEMPRE derivado via `computeSubtotal(item)`,
+ * nunca armazenado para evitar inconsistências.
+ */
+export type SaleItem = {
+  product: Product
+  quantity: number
+}
+
 export type SaleStatus = 'completed' | 'pending' | 'cancelled'
 
 export type Sale = {

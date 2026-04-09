@@ -1,10 +1,11 @@
-import { type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import type { BalanceFilter, EntityStatusFilter, EntityTypeFilter, KpiCardData } from './clients.types'
 import { ClientsPagination } from './ClientsPagination'
 import { EntityTable } from './EntityTable'
 import { buildEntitiesCsvFilename, exportEntitiesToCsv } from './exportEntitiesToCsv'
 import { entitiesMock } from './mock-data'
+import { EntityFormModal } from './EntityFormModal'
 import { useClientsFilters } from './useClientsFilters'
 
 // ── Ícones inline ─────────────────────────────────────────────────────────────
@@ -170,6 +171,8 @@ export function ClientsPage(): ReactNode {
     pageSize,
   } = useClientsFilters(entitiesMock)
 
+  const [modalOpen, setModalOpen] = useState(false)
+
   function handleExportCsv() {
     exportEntitiesToCsv(filteredEntities, buildEntitiesCsvFilename())
   }
@@ -267,7 +270,7 @@ export function ClientsPage(): ReactNode {
               <DownloadIcon />
               Export CSV
             </button>
-            <button type="button" className={primaryBtn} aria-label="Adicionar entidade">
+            <button type="button" className={primaryBtn} aria-label="Adicionar entidade" onClick={() => setModalOpen(true)}>
               <UserPlusIcon />
               Add Entity
             </button>
@@ -342,11 +345,15 @@ export function ClientsPage(): ReactNode {
         <button
           type="button"
           aria-label="Adicionar nova entidade"
+          onClick={() => setModalOpen(true)}
           className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-on-primary shadow-lg hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&>svg]:h-6 [&>svg]:w-6"
         >
           <PlusIcon />
         </button>
       </div>
+
+      {/* ── Modal Registro de Entidade (7.9: integração) ──────────────────────── */}
+      <EntityFormModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
     </div>
   )

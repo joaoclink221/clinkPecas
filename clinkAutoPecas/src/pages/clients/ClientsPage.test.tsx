@@ -194,3 +194,56 @@ describe('ClientsPage — 1.5 Botão flutuante "+"', () => {
     expect(btn.className).toContain('rounded-full')
   })
 })
+
+// ── 7.9 Integração: ClientsPage ↔ EntityFormModal ────────────────────────────
+
+describe('ClientsPage — 7.9 Integração com EntityFormModal', () => {
+  it('modal não está visível por padrão', () => {
+    render(<ClientsPage />)
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('botão "Add Entity" abre o modal', async () => {
+    render(<ClientsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /adicionar entidade/i }))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('botão flutuante "+" também abre o modal', async () => {
+    render(<ClientsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /adicionar nova entidade/i }))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('botão X fecha o modal', async () => {
+    render(<ClientsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /adicionar entidade/i }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /fechar modal/i }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('botão "Cancelar" do modal fecha o modal', async () => {
+    render(<ClientsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /adicionar entidade/i }))
+    await userEvent.click(screen.getByRole('button', { name: /cancelar/i }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('o modal exibe o título "Registro de Entidade"', async () => {
+    render(<ClientsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /adicionar entidade/i }))
+
+    expect(screen.getByRole('heading', { name: /registro de entidade/i })).toBeInTheDocument()
+  })
+})

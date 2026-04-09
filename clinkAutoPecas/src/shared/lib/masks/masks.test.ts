@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyMask, maskCnpj, maskCpf, maskMoeda, maskTelefone, unmask } from './index'
+import { applyMask, maskCep, maskCnpj, maskCpf, maskMoeda, maskTelefone, unmask } from './index'
 
 // ── maskCpf ───────────────────────────────────────────────────────────────────
 
@@ -136,6 +136,10 @@ describe('applyMask', () => {
 
   it('moeda delega para maskMoeda', () => {
     expect(applyMask('moeda', '100')).toBe(maskMoeda('100'))
+  })
+
+  it('cep delega para maskCep', () => {
+    expect(applyMask('cep', '01310100')).toBe(maskCep('01310100'))
   })
 })
 

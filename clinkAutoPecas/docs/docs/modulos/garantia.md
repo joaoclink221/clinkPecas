@@ -291,6 +291,171 @@ Estado local `dropdownOpen` (useState) + `kebabRef` (useRef) no componente princ
 
 ---
 
+---
+
+## Componente `WarrantyClaimModal`
+
+Novo modal de abertura de chamado de garantia/devolução. Substitui funcionalmente o `OpenTicketModal` legado com design compatível com o design system, rodapé tripartido e persistência de rascunho via `localStorage`.
+
+Arquivo: `src/pages/warranty/WarrantyClaimModal.tsx`
+
+### Props
+
+| Prop | Tipo | Descrição |
+|---|---|---|
+| `open` | `boolean` | Controla visibilidade do modal |
+| `onClose` | `() => void` | Fechamento sem salvar (X, Cancelar, overlay, Escape) |
+| `onSuccess` | `() => void` | Chamado após confirmação válida (validação real na fase 2.x) |
+
+### Constante pública
+
+`WARRANTY_CLAIM_DRAFT_KEY = 'warranty_claim_draft'` — chave do `localStorage` para rascunhos.
+
+### 1.1 — Modal, overlay e header
+
+- Overlay: `fixed inset-0 z-50 bg-black/60 backdrop-blur-sm` com `role="presentation"` e `onClick` guardado
+- Dialog: `max-w-[640px]`, `role="dialog"`, `aria-modal="true"`, `aria-labelledby="wcm-title"`
+- Header: `<h2 id="wcm-title">` bold `"Abrir Novo Chamado"` + `<p>` uppercase muted `"WARRANTY & RETURN PROTOCOL"`
+- Botão X: `aria-label="Fechar modal"`, chama `onClose`
+- Fechar com Escape: `useEffect` registra `keydown` apenas quando `open=true`
+- Corpo: 3 `SectionSlot` placeholders (`Identificação do Item`, `Motivo da Solicitação`, `Evidências e Observações`) a serem substituídos nas fases 2.x
+
+### 1.2 — Rodapé com 3 botões
+
+Layout `justify-between`: Cancelar (esquerda) + grupo `Salvar Rascunho` / `Confirmar Abertura` (direita).
+
+| Botão | Estilo | Comportamento |
+|---|---|---|
+| **Cancelar** | Ghost — `text-on-surface-variant` sem fundo | Chama `onClose`; não persiste nada |
+| **Salvar Rascunho** | Secundário — `bg-surface-container-highest` | Persiste `Chamado` completo (sem `attachments`) + `savedAt` em `localStorage[CHAMADO_DRAFT_KEY]`; chama `onClose` |
+| **Confirmar Abertura** | Primário — `bg-primary text-[#0D1117]` | Chama `onSuccess`; sem persistência (stub fase 1.x, validação real na fase 2.x) |
+
+> **Decisão de design:** `Confirmar Abertura` não chama `onClose` diretamente — é responsabilidade do componente pai fechar o modal após receber `onSuccess`.
+
+### 2.1 — Interface TypeScript e mocks
+
+Arquivo: `src/pages/warranty/warrantyClaimMocks.ts`
+
+#### `interface Chamado`
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `skuId` | `string \| null` | SKU selecionado; `null` enquanto não preenchido |
+| `incidentDate` | `string` | Data ISO 8601 (`YYYY-MM-DD`) ou string vazia |
+| `reason` | `ChamadoReason \| null` | `'avaria' \| 'incompativel' \| 'erro_pedido'`; `null` enquanto não selecionado |
+| `description` | `string` | Descrição detalhada do ocorrido |
+| `attachments` | `File[]` | Evidências anexadas — não serializável em JSON; reiniciado como `[]` ao restaurar rascunho |
+| `status` | `'draft' \| 'open'` | Estado do chamado |
+
+#### `INITIAL_CLAIM_STATE`
+
+Todos os campos nulos/vazios: `{ skuId: null, incidentDate: '', reason: null, description: '', attachments: [], status: 'draft' }`.
+
+#### `availableSkusMock`
+
+Array de 5 `SkuOption` (`{ sku, name }`):
+
+| SKU | Nome |
+|---|---|
+| `OG-TB-001` | Turbo Compressor T3 Titanium |
+| `OG-IJ-992` | Kit Injeção Eletrônica RaceSpec |
+| `ORD-98231-X` | Disco de Freio Ventilado |
+| `ORD-88122-Y` | Alternador 120A |
+| `ORD-99100-A` | Kit Filtros (4un) |
+
+#### `CHAMADO_DRAFT_KEY`
+
+`'chamado_draft'` — chave do `localStorage` para persistir o estado completo do formulário (substituiu o payload mínimo `{ status: 'draft' }` da fase WCM-1.2).
+
+### 2.2 — Restaurar rascunho ao abrir
+
+`useEffect` com dependência `[open]`: ao abrir o modal (`open=true`), lê `localStorage.getItem(CHAMADO_DRAFT_KEY)`.
+
+| Cenário | Comportamento |
+|---|---|
+| Chave ausente | Inicializa com `INITIAL_CLAIM_STATE`; sem banner |
+| JSON inválido | Capturado por `try/catch`; inicializa com `INITIAL_CLAIM_STATE`; sem banner |
+| JSON válido | Hidrata `form` com campos salvos; `attachments` reiniciado como `[]`; exibe banner "Rascunho restaurado" |
+
+**Banner:** `role="status"` com `aria-live="polite"`, estilo `bg-primary/10 text-primary`, posicionado entre o header e o corpo do modal.
+
+**`handleSaveDraft` atualizado:** serializa `{ skuId, incidentDate, reason, description, status, savedAt: ISO }` em `CHAMADO_DRAFT_KEY` (campo `attachments` excluído por não ser serializável).
+
+> **Decisão de design — estado unificado:** `form` e `draftRestored` são gerenciados num único `useState<ModalState>` para garantir que o `useEffect` de restore faça apenas uma chamada a `setModalState`, evitando renders em cascata.
+
+### 3.1 — Header da seção "Identificação do Item"
+
+Componente local `SectionHeader({ icon, label })` — mesmo contrato e classes de `EntityFormModal.tsx`.
+
+- Ícone: `TagIcon` SVG inline 16×16px, `text-primary` (teal)
+- Label: `text-[11px] font-semibold uppercase tracking-widest text-primary`
+
+### 3.2 — Dropdown "Seleção de SKU / Produto"
+
+| Detalhe | Valor |
+|---|---|
+| Element | `<select id="wcm-sku">` |
+| Label | `<FieldLabel htmlFor="wcm-sku">` — uppercase muted 10px |
+| Placeholder | `<option value="" disabled>` — "Selecione um item do pedido…" |
+| Opções | `availableSkusMock` (5 itens) — formato `{sku} — {name}` |
+| Estilo | `appearance-none` + `ChevronDownIcon` posicionado absolutamente à direita |
+| Estado | `onChange` → `setField('skuId', value || null)` — `null` quando placeholder |
+
+### 3.3 — Date picker "Data do Incidente"
+
+| Detalhe | Valor |
+|---|---|
+| Element | `<input type="date" id="wcm-date">` |
+| Label | `<FieldLabel htmlFor="wcm-date">` — uppercase muted 10px |
+| Max | `new Date().toISOString().split('T')[0]` — datas futuras desabilitadas pelo browser |
+| Estilo | `[color-scheme:dark]` para adaptar o ícone nativo ao tema escuro |
+| Estado | `onChange` → `setField('incidentDate', value)` |
+
+**Layout:** grid `grid-cols-2 gap-4` — SKU (esquerda) e data (direita), ambos ~50% da largura.
+
+**Helper `setField`:** função genérica tipada `<K extends keyof Chamado>` que faz merge parcial em `ModalState.form` com um único `setModalState`.
+
+### 4.1 — Grid de 3 cards de motivo
+
+Arquivo: `src/pages/warranty/WarrantyClaimModal.tsx`
+
+`SectionHeader` com `AlertCircleIcon` (h-4 w-4 teal) + `"MOTIVO DA SOLICITAÇÃO"`; grid `grid-cols-3 gap-3` de `ReasonCard`.
+
+#### `ReasonCard`
+
+| Prop | Tipo | Descrição |
+|---|---|---|
+| `value` | `ChamadoReason` | Identificador do motivo |
+| `label` | `string` | Texto do card (renderizado uppercase via CSS) |
+| `icon` | `ReactNode` | Ícone SVG 28px centralizado |
+| `isActive` | `boolean` | Aplica borda teal + fundo mais claro |
+| `onClick` | `() => void` | Toggle de seleção |
+
+Acessibilidade: `type="button"` + `aria-pressed={isActive}`.
+
+#### `REASON_CARDS` (constante de módulo)
+
+| value | label | Ícone |
+|---|---|---|
+| `'avaria'` | Avaria | `ImageBrokenIcon` — h-7 w-7 `text-secondary` |
+| `'incompativel'` | Incompatível | `AlertCircleIcon` — h-7 w-7 `text-secondary` |
+| `'erro_pedido'` | Erro de Pedido | `CartXIcon` — h-7 w-7 `text-secondary` |
+
+### 4.2 — Seleção exclusiva com toggle
+
+Lógica de clique: `setField('reason', form.reason === card.value ? null : card.value)`
+
+| Cenário | Resultado |
+|---|---|
+| Clicar em card inativo | Ativa o card clicado; todos os outros ficam inativos |
+| Clicar no card já ativo | Desmarca (toggle — `reason` volta a `null`) |
+| Apenas 1 card ativo por vez | Garantido pelo campo escalar `reason: ChamadoReason \| null` |
+
+Visual ativo: `border-[1.5px] border-primary bg-surface-container`.
+Visual inativo: `border border-outline-variant/20 bg-surface-container-low`.
+
+---
+
 ## Evolução planejada
 
 | Fase | Descrição | Status |
@@ -301,3 +466,13 @@ Estado local `dropdownOpen` (useState) + `kebabRef` (useRef) no componente princ
 | 4.1–4.4 | Painel `WarrantyTrackingPanel`: cards, badges, expiração | ✅ Concluído |
 | 5.1–5.2 | Cards `PredictiveInsightsCard` + `PolicyGuideCard` | ✅ Concluído |
 | 6.1–6.3 | Modal Abrir Chamado, kebab Tracking, auditoria design | ✅ Concluído |
+| WCM-1.1 | `WarrantyClaimModal`: overlay, header, Escape, re-render | ✅ Concluído |
+| WCM-1.2 | `WarrantyClaimModal`: rodapé tripartido, localStorage draft | ✅ Concluído |
+| WCM-2.1 | `warrantyClaimMocks.ts`: `Chamado`, `INITIAL_CLAIM_STATE`, `availableSkusMock` | ✅ Concluído |
+| WCM-2.2 | `WarrantyClaimModal`: restore de rascunho + banner "Rascunho restaurado" | ✅ Concluído |
+| WCM-3.1 | `WarrantyClaimModal`: `SectionHeader` + `TagIcon` — seção "Identificação do Item" | ✅ Concluído |
+| WCM-3.2 | `WarrantyClaimModal`: dropdown SKU com `availableSkusMock` + `setField` helper | ✅ Concluído |
+| WCM-3.3 | `WarrantyClaimModal`: `<input type="date">` estilizado, `max=today` | ✅ Concluído |
+| WCM-4.1 | `WarrantyClaimModal`: `ReasonCard`, `REASON_CARDS`, 3 ícones SVG inline | ✅ Concluído |
+| WCM-4.2 | `WarrantyClaimModal`: toggle exclusivo `reason`, visual ativo teal | ✅ Concluído |
+| WCM-5.x | `WarrantyClaimModal`: seção "Evidências e Observações" (attachments) | 🔲 Pendente |

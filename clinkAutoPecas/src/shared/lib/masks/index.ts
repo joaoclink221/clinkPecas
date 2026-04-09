@@ -9,7 +9,7 @@
  * Para persistir apenas os dígitos, use `unmask()`.
  */
 
-export type MaskType = 'cpf' | 'cnpj' | 'telefone' | 'moeda'
+export type MaskType = 'cpf' | 'cnpj' | 'telefone' | 'moeda' | 'cep'
 
 // ── Helpers internos ──────────────────────────────────────────────────────────
 
@@ -74,6 +74,16 @@ export function maskMoeda(value: string): string {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+/**
+ * Formata CEP no padrão `00000-000`.
+ * Aceita até 8 dígitos; dígitos extras são descartados.
+ */
+export function maskCep(value: string): string {
+  const d = digitsOnly(value).slice(0, 8)
+  if (d.length <= 5) return d
+  return `${d.slice(0, 5)}-${d.slice(5)}`
+}
+
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 
 /** Aplica a máscara correta conforme o tipo especificado. */
@@ -83,6 +93,7 @@ export function applyMask(type: MaskType, value: string): string {
     case 'cnpj':     return maskCnpj(value)
     case 'telefone': return maskTelefone(value)
     case 'moeda':    return maskMoeda(value)
+    case 'cep':      return maskCep(value)
   }
 }
 

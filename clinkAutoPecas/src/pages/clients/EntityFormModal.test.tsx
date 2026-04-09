@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -405,5 +405,250 @@ describe('EntityFormModal 3.2 — Campo documento com máscara dinâmica', () =>
 
     await userEvent.click(screen.getByRole('button', { name: /pessoa jurídica/i }))
     expect(screen.getByLabelText(/^cnpj$/i)).toHaveValue('')
+  })
+})
+
+// ── 4.1 — Grupo Canais de Contato ────────────────────────────────────────────
+
+describe('EntityFormModal 4.1 — Canais de Contato', () => {
+  it('exibe o cabeçalho "CANAIS DE CONTATO"', () => {
+    renderModal()
+    expect(screen.getByText(/canais de contato/i)).toBeInTheDocument()
+  })
+
+  it('renderiza campo de e-mail com placeholder correto', () => {
+    renderModal()
+    expect(screen.getByLabelText(/^e-mail$/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('email@exemplo.com.br')).toBeInTheDocument()
+  })
+
+  it('campo e-mail tem type="email"', () => {
+    renderModal()
+    expect(screen.getByLabelText(/^e-mail$/i)).toHaveAttribute('type', 'email')
+  })
+
+  it('renderiza campo de telefone com placeholder correto', () => {
+    renderModal()
+    expect(screen.getByLabelText(/^telefone$/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('(00) 00000-0000')).toBeInTheDocument()
+  })
+
+  it('aplica máscara de telefone ao digitar', async () => {
+    renderModal()
+    const input = screen.getByLabelText(/^telefone$/i)
+    await userEvent.type(input, '11987654321')
+    expect(input).toHaveValue('(11) 98765-4321')
+  })
+
+  it('aceita digitação no campo e-mail', async () => {
+    renderModal()
+    const input = screen.getByLabelText(/^e-mail$/i)
+    await userEvent.type(input, 'contato@empresa.com')
+    expect(input).toHaveValue('contato@empresa.com')
+  })
+})
+
+// ── 4.2 — Grupo Logradouro Principal ─────────────────────────────────────────
+
+describe('EntityFormModal 4.2 — Logradouro Principal', () => {
+  it('exibe o cabeçalho "LOGRADOURO PRINCIPAL"', () => {
+    renderModal()
+    expect(screen.getByText(/logradouro principal/i)).toBeInTheDocument()
+  })
+
+  it('renderiza campo "Rua, Avenida ou Alameda"', () => {
+    renderModal()
+    expect(screen.getByLabelText(/rua, avenida ou alameda/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/av\. paulista/i)).toBeInTheDocument()
+  })
+
+  it('renderiza campo "Número"', () => {
+    renderModal()
+    expect(screen.getByLabelText(/^número$/i)).toBeInTheDocument()
+  })
+
+  it('renderiza campo "CEP" com placeholder correto', () => {
+    renderModal()
+    expect(screen.getByLabelText(/^cep$/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('00000-000')).toBeInTheDocument()
+  })
+
+  it('aplica máscara de CEP ao digitar', async () => {
+    renderModal()
+    const input = screen.getByLabelText(/^cep$/i)
+    await userEvent.type(input, '01310100')
+    expect(input).toHaveValue('01310-100')
+  })
+
+  it('renderiza campo "Cidade"', () => {
+    renderModal()
+    expect(screen.getByLabelText(/^cidade$/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/são paulo/i)).toBeInTheDocument()
+  })
+
+  it('renderiza campo "UF" com maxLength=2', () => {
+    renderModal()
+    const uf = screen.getByLabelText(/^uf$/i)
+    expect(uf).toBeInTheDocument()
+    expect(uf).toHaveAttribute('maxLength', '2')
+  })
+
+  it('campo UF converte para uppercase automaticamente', async () => {
+    renderModal()
+    const input = screen.getByLabelText(/^uf$/i)
+    await userEvent.type(input, 'sp')
+    expect(input).toHaveValue('SP')
+  })
+
+  it('todos os 5 campos de endereço estão presentes', () => {
+    renderModal()
+    expect(screen.getByLabelText(/rua, avenida ou alameda/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^número$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^cep$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^cidade$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^uf$/i)).toBeInTheDocument()
+  })
+})
+
+// ── 5.1 — Parâmetros Comerciais (Cliente) ────────────────────────────────
+
+describe('EntityFormModal 5.1 — Parâmetros Comerciais (Cliente)', () => {
+  it('exibe o header "Parâmetros Comerciais (Cliente)" por padrão', () => {
+    renderModal()
+    expect(screen.getByText(/parâmetros comerciais \(cliente\)/i)).toBeInTheDocument()
+  })
+
+  it('exibe campo "Limite de Crédito Disponível" com prefixo R$', () => {
+    renderModal()
+    expect(screen.getByLabelText(/limite de crédito disponível/i)).toBeInTheDocument()
+    expect(screen.getByText('R$')).toBeInTheDocument()
+  })
+
+  it('exibe campo "Prazo de Entrega" com sufixo DIAS', () => {
+    renderModal()
+    expect(screen.getByLabelText(/prazo de entrega/i)).toBeInTheDocument()
+    const diasElements = screen.getAllByText(/^dias$/i)
+    expect(diasElements.length).toBeGreaterThan(0)
+  })
+
+  it('aceita digitação no campo Prazo de Entrega', async () => {
+    renderModal()
+    const input = screen.getByLabelText(/prazo de entrega/i)
+    await userEvent.type(input, '30')
+    expect(input).toHaveValue('30')
+  })
+})
+
+// ── 5.2 — Parâmetros Comerciais (Fornecedor) ───────────────────────────
+
+describe('EntityFormModal 5.2 — Parâmetros Comerciais (Fornecedor)', () => {
+  it('ao selecionar Fornecedor, header muda para "Parâmetros Comerciais (Fornecedor)"', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /^fornecedor$/i }))
+    expect(screen.getByText(/parâmetros comerciais \(fornecedor\)/i)).toBeInTheDocument()
+  })
+
+  it('exibe campo "Prazo de Pagamento (Dias)" na variante fornecedor', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /^fornecedor$/i }))
+    expect(screen.getByLabelText(/prazo de pagamento/i)).toBeInTheDocument()
+  })
+
+  it('exibe campo "Desconto Padrão (%)" na variante fornecedor', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /^fornecedor$/i }))
+    expect(screen.getByLabelText(/desconto padrão/i)).toBeInTheDocument()
+  })
+
+  it('trocar para Fornecedor oculta campos do Cliente', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /^fornecedor$/i }))
+    expect(screen.queryByLabelText(/limite de crédito/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/prazo de entrega/i)).not.toBeInTheDocument()
+  })
+
+  it('trocar de volta para Cliente oculta campos do Fornecedor', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /^fornecedor$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^cliente$/i }))
+    expect(screen.queryByLabelText(/prazo de pagamento/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/desconto padrão/i)).not.toBeInTheDocument()
+  })
+
+  it('valores dos parâmetros são limpos ao trocar vínculo', async () => {
+    renderModal()
+    const prazoEntregaInput = screen.getByLabelText(/prazo de entrega/i)
+    await userEvent.type(prazoEntregaInput, '15')
+    expect(prazoEntregaInput).toHaveValue('15')
+    // troca e volta
+    await userEvent.click(screen.getByRole('button', { name: /^fornecedor$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^cliente$/i }))
+    expect(screen.getByLabelText(/prazo de entrega/i)).toHaveValue('')
+  })
+})
+
+// ── 5.3 — Validação e Submit ──────────────────────────────────────────
+
+async function fillRequiredFields() {
+  await userEvent.type(screen.getByLabelText(/razão social/i), 'Empresa XYZ')
+  await userEvent.type(screen.getByLabelText(/^cnpj$/i), '11222333000181')
+  await userEvent.type(screen.getByLabelText(/^e-mail$/i), 'contato@empresa.com')
+  await userEvent.type(screen.getByLabelText(/^telefone$/i), '11987654321')
+}
+
+describe('EntityFormModal 5.3 — Validação e Submit', () => {
+  it('botão "Salvar Cadastro" está desabilitado com formulário vazio', () => {
+    renderModal()
+    expect(screen.getByRole('button', { name: /salvar cadastro/i })).toBeDisabled()
+  })
+
+  it('botão permanece desabilitado se apenas nome preenchido', async () => {
+    renderModal()
+    await userEvent.type(screen.getByLabelText(/razão social/i), 'Empresa XYZ')
+    expect(screen.getByRole('button', { name: /salvar cadastro/i })).toBeDisabled()
+  })
+
+  it('botão permanece desabilitado com CNPJ incompleto', async () => {
+    renderModal()
+    await userEvent.type(screen.getByLabelText(/razão social/i), 'Empresa XYZ')
+    await userEvent.type(screen.getByLabelText(/^cnpj$/i), '112223')
+    await userEvent.type(screen.getByLabelText(/^e-mail$/i), 'test@test.com')
+    await userEvent.type(screen.getByLabelText(/^telefone$/i), '11987654321')
+    expect(screen.getByRole('button', { name: /salvar cadastro/i })).toBeDisabled()
+  })
+
+  it('botão é habilitado quando todos os obrigatórios estão válidos (CNPJ)', async () => {
+    renderModal()
+    await fillRequiredFields()
+    expect(screen.getByRole('button', { name: /salvar cadastro/i })).toBeEnabled()
+  })
+
+  it('botão é habilitado com CPF completo (Pessoa Física)', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /pessoa física/i }))
+    await userEvent.type(screen.getByLabelText(/^nome completo$/i), 'João da Silva')
+    await userEvent.type(screen.getByLabelText(/^cpf$/i), '12345678909')
+    await userEvent.type(screen.getByLabelText(/^e-mail$/i), 'joao@email.com')
+    await userEvent.type(screen.getByLabelText(/^telefone$/i), '11987654321')
+    expect(screen.getByRole('button', { name: /salvar cadastro/i })).toBeEnabled()
+  })
+
+  it('clicar em Salvar com dados válidos exibe toast de sucesso', async () => {
+    renderModal()
+    await fillRequiredFields()
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: /salvar cadastro/i }))
+    expect(screen.getByRole('status')).toHaveTextContent(/entidade cadastrada com sucesso/i)
+    vi.useRealTimers()
+  })
+
+  it('onClose é chamado após 1500ms do submit', async () => {
+    const { onClose } = renderModal()
+    await fillRequiredFields()
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: /salvar cadastro/i }))
+    act(() => { vi.advanceTimersByTime(1500) })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
   })
 })

@@ -501,15 +501,150 @@ function handleNaturezaChange(value: string) {
 
 ---
 
-### Fases futuras do modal
+### 7.6 — Grupos Fixos: Canais de Contato e Logradouro (fases 4.1 e 4.2)
 
-| Fase | Descrição |
+Estes grupos **não variam** com os toggles — mesmos campos em todas as combinações de `vinculo × natureza`.
+
+#### Sub-componente `SectionHeader`
+
+Cabeçalho reutilizável para os grupos de campos:
+
+```tsx
+<SectionHeader icon={<MailIcon />} label="Canais de Contato" />
+```
+
+Renderiza ícone teal 16px + label uppercase `text-primary text-[11px] tracking-widest`.
+
+#### 4.1 — Canais de Contato
+
+Layout: `grid-cols-2`
+
+| Campo | Tipo | Componente | Placeholder |
+|---|---|---|---|
+| E-mail | `email` | `TextField` (`type="email"`) | `email@exemplo.com.br` |
+| Telefone | — | `MaskedTextField` (`mask="telefone"`) | `(00) 00000-0000` |
+
+Estado: `email: string`, `telefone: string`
+
+#### 4.2 — Logradouro Principal
+
+**Linha 1:** `grid-cols-[7fr_3fr]`
+
+| Campo | Componente | Placeholder |
+|---|---|---|
+| Rua, Avenida ou Alameda (~70%) | `TextField` | `Ex: Av. Paulista` |
+| Número (~30%) | `TextField` | `100` |
+
+**Linha 2:** `grid-cols-[2fr_3fr_1fr]`
+
+| Campo | Componente | Observação |
+|---|---|---|
+| CEP | `MaskedTextField` (`mask="cep"`) | Máscara `00000-000` |
+| Cidade | `TextField` | — |
+| UF | `TextField` (`maxLength={2}`) | `onChange` força `.toUpperCase()` |
+
+Estado: `logradouro`, `numero`, `cep`, `cidade`, `uf` — todos `string`.
+
+#### `maskCep` — nova máscara adicionada em `shared/lib/masks`
+
+| | |
 |---|---|
-| 7.6 | Seção Canais de Contato: email + telefone mascarado |
-| 7.7 | Seção Logradouro: endereço, CEP, cidade, UF |
-| 7.8 | Seção Parâmetros Comerciais: renderização condicional por vínculo (2.3-A/B vs 2.3-C/D) |
-| 7.9 | Validação de formulário + habilitar botão Salvar + submit |
-| 7.10 | Integração com `ClientsPage` (abrir via botão "Add Entity") |
+| Tipo | `'cep'` adicionado a `MaskType` |
+| Função | `maskCep(value)` → `00000-000` |
+| Máx. dígitos | 8 |
+| Estratégia | Progressiva: sem traço até 5 dígitos, traço a partir do 6º |
+
+---
+
+### 7.7 — Parâmetros Comerciais Condicionais (fases 5.1 e 5.2)
+
+Card com borda teal sutil (`border border-primary/20 rounded-xl p-4`) contendo header dinâmico e dois campos que mudam conforme `vinculo`.
+
+#### Sub-componente `DecoratedField`
+
+Campo de input com prefixo/sufixo não editável (local ao modal, sem alterar `shared/ui`):
+
+```tsx
+<DecoratedField label="Limite de Crédito Disponível" prefix="R$" ... />
+<DecoratedField label="Prazo de Entrega (Estimado em Dias)" suffix="DIAS" ... />
+```
+
+Propriedades `prefix` e `suffix` renderizam `<span aria-hidden>` para decoração visual.
+
+#### 5.1 — Variante Cliente (`vinculo === 'cliente'`)
+
+Header: `"Parâmetros Comerciais (Cliente)"`
+
+| Campo | Componente | Decoração | Estado |
+|---|---|---|---|
+| Limite de Crédito Disponível | `DecoratedField` | prefix `R$` + `maskMoeda` no onChange | `limiteCredito` |
+| Prazo de Entrega (Estimado em Dias) | `DecoratedField` | suffix `DIAS`, apenas dígitos | `prazoEntrega` |
+
+#### 5.2 — Variante Fornecedor (`vinculo === 'fornecedor'`)
+
+Header: `"Parâmetros Comerciais (Fornecedor)"`
+
+| Campo | Componente | Decoração | Estado |
+|---|---|---|---|
+| Prazo de Pagamento (Dias) | `DecoratedField` | suffix `DIAS`, apenas dígitos | `prazoPagamento` |
+| Desconto Padrão (%) | `DecoratedField` | suffix `%`, apenas dígitos | `descontoPadrao` |
+
+**Limpeza ao trocar vínculo:** `handleVinculoChange` limpa todos os 4 estados de parâmetros atomicamente.
+
+---
+
+### 7.8 — Validação, Botão Salvar e Toast (fase 5.3)
+
+#### `isFormValid` — valor derivado (não estado)
+
+```ts
+const documentoFullLength = natureza === 'juridica' ? 18 : 14
+const isFormValid =
+  nome.trim().length > 0 &&
+  documento.length === documentoFullLength &&
+  email.trim().length > 0 &&
+  telefone.length >= 14
+```
+
+| Campo | Critério |
+|---|---|
+| `nome` | non-empty após trim |
+| `documento` | CNPJ = 18 chars (`11.222.333/0001-81`) / CPF = 14 chars (`123.456.789-09`) |
+| `email` | non-empty após trim |
+| `telefone` | ≥ 14 chars (mínimo para `(xx) xxxx-xxxx`) |
+
+O botão `"Salvar Cadastro"` usa `disabled={!isFormValid}` — sem estado adicional.
+
+#### `handleSubmit` — fluxo de submit
+
+```ts
+function handleSubmit() {
+  setToastVisible(true)
+  setTimeout(() => {
+    setToastVisible(false)
+    onClose()
+  }, 1500)
+}
+```
+
+Toast: `role="status"` + `aria-live="polite"` — acessível a leitores de tela. Posicionado fixo `bottom-8` com `z-[60]`, fora do container do modal (irmão do `<div role="dialog">`).
+
+---
+
+### 7.9 — Integração `ClientsPage` ↔ `EntityFormModal`
+
+Estado `modalOpen: boolean` adicionado ao `ClientsPage`. Dois pontos de entrada:
+
+| Gatilho | `aria-label` | Localização |
+|---|---|---|
+| Botão "Add Entity" | `"Adicionar entidade"` | Header, linha de ações |
+| Botão flutuante "+" | `"Adicionar nova entidade"` | Sticky footer da página |
+
+Ambos chamam `setModalOpen(true)`. O modal recebe `onClose={() => setModalOpen(false)}` — `X`, "Cancelar" e submit bem-sucedido fecham via este callback.
+
+```tsx
+<EntityFormModal open={modalOpen} onClose={() => setModalOpen(false)} />
+```
 
 ---
 
@@ -529,4 +664,7 @@ function handleNaturezaChange(value: string) {
 | 7.3 | Modal: área de formulário com slots placeholder + rodapé de ações | ✅ Concluído |
 | 7.4 | Modal: toggles Tipo de Vínculo (2.1) + Natureza Jurídica (2.2) + mapeamento 2.3 | ✅ Concluído |
 | 7.5 | Modal: campos Razão Social/Nome (3.1) + CNPJ/CPF com máscara dinâmica (3.2) | ✅ Concluído |
-| 7.6–7.10 | Modal: canais de contato, logradouro, parâmetros, validação, integração | 🔲 Pendente |
+| 7.6 | Modal: Canais de Contato (4.1) + Logradouro Principal (4.2) + maskCep | ✅ Concluído |
+| 7.7 | Modal: Parâmetros Comerciais condicionais (5.1 + 5.2) + DecoratedField | ✅ Concluído |
+| 7.8 | Modal: validação de obrigatórios + botão Salvar + toast (5.3) | ✅ Concluído |
+| 7.9 | Modal: integração com ClientsPage — botão "Add Entity" + FAB + fechar | ✅ Concluído |
