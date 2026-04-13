@@ -117,8 +117,10 @@ export const WARRANTY_CLAIM_DRAFT_KEY = 'warranty_claim_draft'
 export interface WarrantyClaimModalProps {
   open: boolean
   onClose: () => void
-  /** Chamado após confirmação válida. Validação real de campos será adicionada na fase 2.x. */
-  onSuccess: () => void
+  /** Chamado após confirmação válida; recebe o número do protocolo gerado (ex: "GAR-47321"). */
+  onSuccess: (protocol: string) => void
+  /** Chamado após salvar rascunho, antes de fechar o modal. */
+  onDraftSaved?: () => void
 }
 
 // ── Sub-componentes de layout ──────────────────────────────────────────────
@@ -282,7 +284,52 @@ function Dropzone({ onFilesAdded }: { onFilesAdded: (files: File[]) => void }): 
   )
 }
 
-// ── Componente principal ───────────────────────────────────────────────────────
+// ── Validação e toast interno ───────────────────────────────────────────
+
+type ValidationField = 'identificacao' | 'motivo' | 'descricao'
+
+/** Valida os campos obrigatórios do formulário. Retorna mapa de erros por seção. */
+function validate(form: Chamado): Partial<Record<ValidationField, string>> {
+  const errors: Partial<Record<ValidationField, string>> = {}
+  if (!form.skuId || !form.incidentDate) {
+    errors.identificacao = 'Selecione o item e informe a data do incidente.'
+  }
+  if (!form.reason) {
+    errors.motivo = 'Selecione o motivo da solicitação.'
+  }
+  if (form.description.length < 20) {
+    errors.descricao = 'Descrição deve ter ao menos 20 caracteres.'
+  }
+  return errors
+}
+
+/** Gera número de protocolo aleatório no formato GAR-XXXXX. */
+function generateProtocol(): string {
+  return `GAR-${Math.floor(10000 + Math.random() * 90000)}`
+}
+
+interface ModalToast {
+  message: string
+  type: 'error' | 'success'
+}
+
+function ModalToastBanner({ toast }: { toast: ModalToast }): ReactNode {
+  return (
+    <div
+      role={toast.type === 'error' ? 'alert' : 'status'}
+      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+      className={`mx-8 mt-2 rounded-lg px-4 py-2 text-[11px] font-semibold ${
+        toast.type === 'error'
+          ? 'bg-tertiary/10 text-tertiary'
+          : 'bg-primary/10 text-primary'
+      }`}
+    >
+      {toast.message}
+    </div>
+  )
+}
+
+// ── Componente principal ───────────────────────────────────────────────
 
 interface ModalState {
   form: Chamado
@@ -297,8 +344,10 @@ const REASON_CARDS: Array<{ value: ChamadoReason; label: string; icon: ReactNode
   { value: 'erro_pedido', label: 'Erro de Pedido', icon: <CartXIcon /> },
 ]
 
-export function WarrantyClaimModal({ open, onClose, onSuccess }: WarrantyClaimModalProps): ReactNode {
+export function WarrantyClaimModal({ open, onClose, onSuccess, onDraftSaved }: WarrantyClaimModalProps): ReactNode {
   const [{ form, draftRestored }, setModalState] = useState<ModalState>(INITIAL_MODAL_STATE)
+  const [validationErrors, setValidationErrors] = useState<Partial<Record<ValidationField, string>>>({})
+  const [modalToast, setModalToast] = useState<ModalToast | null>(null)
 
   // Fecha o modal ao pressionar Escape
   useEffect(() => {
@@ -315,6 +364,8 @@ export function WarrantyClaimModal({ open, onClose, onSuccess }: WarrantyClaimMo
   // quando uma prop muda — lazy initializer não reexecuta ao reabrir o modal.
   useEffect(() => {
     if (!open) return
+    setValidationErrors({})
+    setModalToast(null)
     try {
       const raw = localStorage.getItem(CHAMADO_DRAFT_KEY)
       if (raw) {
@@ -342,6 +393,8 @@ export function WarrantyClaimModal({ open, onClose, onSuccess }: WarrantyClaimMo
 
   function setField<K extends keyof Chamado>(key: K, value: Chamado[K]): void {
     setModalState((prev) => ({ ...prev, form: { ...prev.form, [key]: value } }))
+    if (Object.keys(validationErrors).length > 0) setValidationErrors({})
+    if (modalToast?.type === 'error') setModalToast(null)
   }
 
   const today = new Date().toISOString().split('T')[0]
@@ -358,16 +411,28 @@ export function WarrantyClaimModal({ open, onClose, onSuccess }: WarrantyClaimMo
         incidentDate: form.incidentDate,
         reason: form.reason,
         description: form.description,
+        attachmentNames: form.attachments.map((f) => f.name),
         status: form.status,
         savedAt: new Date().toISOString(),
       }),
     )
+    onDraftSaved?.()
     onClose()
   }
 
   function handleConfirm(): void {
-    // Fase 2.x: validação dos campos (SKU, data do incidente, motivo) será adicionada aqui.
-    onSuccess()
+    const errors = validate(form)
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors)
+      const firstMessage =
+        errors.identificacao ?? errors.motivo ?? errors.descricao ?? 'Corrija os campos destacados.'
+      setModalToast({ message: firstMessage, type: 'error' })
+      return
+    }
+    setValidationErrors({})
+    const protocol = generateProtocol()
+    localStorage.removeItem(CHAMADO_DRAFT_KEY)
+    onSuccess(protocol)
   }
 
   return (
@@ -413,11 +478,14 @@ export function WarrantyClaimModal({ open, onClose, onSuccess }: WarrantyClaimMo
           </div>
         )}
 
+        {/* ── 6.1 / 6.2 Toast interno (erro de validação) ────────────── */}
+        {modalToast && <ModalToastBanner toast={modalToast} />}
+
         {/* ── Corpo ──────────────────────────────────────────────────── */}
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-8 py-6">
 
           {/* ── 3.1 / 3.2 / 3.3 — Identificação do Item ────────────── */}
-          <div className="flex flex-col gap-3">
+          <div className={`flex flex-col gap-3 rounded-xl transition-shadow ${validationErrors.identificacao ? 'ring-[1.5px] ring-tertiary p-3' : ''}`}>
             <SectionHeader icon={<TagIcon />} label="Identificação do Item" />
 
             <div className="grid grid-cols-2 gap-4">
@@ -462,7 +530,7 @@ export function WarrantyClaimModal({ open, onClose, onSuccess }: WarrantyClaimMo
           </div>
 
           {/* ── 4.1 / 4.2 — Motivo da Solicitação ────────────────────── */}
-          <div className="flex flex-col gap-3">
+          <div className={`flex flex-col gap-3 rounded-xl transition-shadow ${validationErrors.motivo ? 'ring-[1.5px] ring-tertiary p-3' : ''}`}>
             <SectionHeader icon={<AlertCircleIcon />} label="Motivo da Solicitação" />
 
             <div className="grid grid-cols-3 gap-3">
@@ -480,7 +548,7 @@ export function WarrantyClaimModal({ open, onClose, onSuccess }: WarrantyClaimMo
           </div>
 
           {/* ── 5.1 / 5.2 / 5.3 — Evidências e Observações ──────────────── */}
-          <div className="flex flex-col gap-4">
+          <div className={`flex flex-col gap-4 rounded-xl transition-shadow ${validationErrors.descricao ? 'ring-[1.5px] ring-tertiary p-3' : ''}`}>
             <SectionHeader icon={<PaperclipIcon />} label="Evidências e Observações" />
 
             {/* 5.1 — Textarea de descrição */}

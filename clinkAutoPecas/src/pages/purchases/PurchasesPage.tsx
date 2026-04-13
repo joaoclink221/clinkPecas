@@ -1,5 +1,6 @@
-import { type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
+import { PurchaseOrderFormModal } from './PurchaseOrderFormModal'
 import { PurchasesKpiCard } from './PurchasesKpiCard'
 import { PurchasesPagination } from './PurchasesPagination'
 import { PurchasesTable } from './PurchasesTable'
@@ -78,6 +79,8 @@ const XCircleIcon = (): ReactNode => (
 // ── Componente da página ──────────────────────────────────────────────────────
 
 export function PurchasesPage() {
+  const [modalOpen, setModalOpen] = useState(false)
+
   const {
     searchQuery,
     setSearchQuery,
@@ -134,6 +137,7 @@ export function PurchasesPage() {
         <div className="self-start sm:self-center">
           <button
             type="button"
+            onClick={() => setModalOpen(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-[#10b981] px-5 py-2.5 text-label-sm font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#10b981] [&>svg]:h-4 [&>svg]:w-4"
           >
             <PlusIcon />
@@ -291,6 +295,13 @@ export function PurchasesPage() {
           </span>
         </div>
       </footer>
+
+      {/* ── Modal Nova Ordem de Compra ──────────────────────────────── */}
+      <PurchaseOrderFormModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={() => setModalOpen(false)}
+      />
 
     </div>
   )

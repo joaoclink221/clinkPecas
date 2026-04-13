@@ -454,6 +454,97 @@ Lógica de clique: `setField('reason', form.reason === card.value ? null : card.
 Visual ativo: `border-[1.5px] border-primary bg-surface-container`.
 Visual inativo: `border border-outline-variant/20 bg-surface-container-low`.
 
+### 5.1 — Textarea de descrição
+
+`<textarea id="wcm-description">` controlada por `setField('description', value)`.
+
+| Atributo | Valor |
+|---|---|
+| `placeholder` | "Descreva detalhadamente o ocorrido ou defeito apresentado…" |
+| `maxLength` | 500 |
+| `style.minHeight` | 100px |
+| `className` | `resize-y` (redimensionamento apenas vertical) |
+
+Contador de caracteres `{description.length}/500` exibido abaixo, alinhado à direita. Não persiste no `localStorage` (rascunho salva `description` normalmente via `setField`).
+
+### 5.2 — Dropzone de arquivos
+
+Arquivo: `src/pages/warranty/WarrantyClaimModal.tsx` — sub-componente `Dropzone`.
+
+| Elemento | Descrição |
+|---|---|
+| Área clicável | `div role="button"` com handlers `onDragOver`, `onDragLeave`, `onDrop`, `onClick`, `onKeyDown` |
+| Input oculto | `<input type="file" multiple accept=".png,.jpg,.jpeg,.pdf" aria-hidden tabIndex={-1} className="hidden">` |
+| Ícone | `UploadIcon` — h-6 w-6 `text-primary` |
+| Texto principal | "CLIQUE PARA ANEXAR FOTOS OU ARRASTE AQUI" (uppercase via Tailwind) |
+| Sub-label | "PNG, JPG ou PDF (Máx 10MB)" |
+| Erro | `role="alert"` exibido quando qualquer arquivo supera `MAX_UPLOAD_BYTES = 10 * 1024 * 1024` |
+
+**`processFiles(fileList)`:** filtra válidos (`size <= MAX`), chama `onFilesAdded(valid)`, seta `uploadError` se houver rejeitados. Estado `uploadError` é local ao `Dropzone` (não persiste no rascunho — feedback transitório de UI).
+
+### 5.3 — Preview dos arquivos anexados
+
+Sub-componente `FilePreviewItem({ file, onRemove })`.
+
+| Tipo | Visual |
+|---|---|
+| Imagem (`image/*`) | `<img src={URL.createObjectURL(file)}>` 40×40px, `useEffect` revoga via `URL.revokeObjectURL` ao desmontar |
+| PDF / outro | `FileIcon` SVG genérico h-10 w-10 `text-on-surface-variant/50` |
+
+Lista renderizada como `<ul aria-label="Arquivos anexados">` com `<li>` por arquivo. Botão X por item: `aria-label="Remover {file.name}"`. Remoção: `setField('attachments', attachments.filter((_, i) => i !== idx))`.
+
+**Formato de tamanho:** `< 1 MB` → `"N KB"` (`Math.round(size / 1024)`); `>= 1 MB` → `"N.N MB"` (`(size / 1_048_576).toFixed(1)`).
+
+### 6.1 — Salvar Rascunho (validação mínima)
+
+Acionado pelo botão "Salvar Rascunho" no rodé do modal.
+
+**Comportamento:** Salva sem validação de campos obrigatórios — aceita estado parcialmente preenchido.
+
+**Serialização no `localStorage` (`CHAMADO_DRAFT_KEY`):**
+
+| Campo | Tipo salvo | Observação |
+|---|---|---|
+| `skuId` | `string \| null` | |
+| `incidentDate` | `string` | |
+| `reason` | `ChamadoReason \| null` | |
+| `description` | `string` | |
+| `attachmentNames` | `string[]` | Apenas nomes — `File[]` não é serializável |
+| `status` | `'draft'` | |
+| `savedAt` | `string` (ISO 8601) | |
+
+**Callbacks:** `onDraftSaved?.()` → `onClose()`. O pai (`WarrantyPage`) exibe toast "Rascunho salvo" via `PageToast`.
+
+### 6.2 — Confirmar Abertura (validação completa)
+
+Acionado pelo botão "Confirmar Abertura" no rodé do modal.
+
+**Função pura `validate(form)`** retorna `Partial<Record<ValidationField, string>>`:
+
+| Campo | Regra | Mensagem de erro |
+|---|---|---|
+| `skuId` | não nulo | "Selecione o item e informe a data do incidente." |
+| `incidentDate` | não vazio | (mesma mensagem acima — `identificacao`) |
+| `reason` | não nulo | "Selecione o motivo da solicitação." |
+| `description` | `length >= 20` | "Descrição deve ter ao menos 20 caracteres." |
+
+**Se inválido:**
+- `setValidationErrors(errors)` → cada seção com erro recebe `ring-[1.5px] ring-tertiary rounded-xl p-3`
+- `ModalToastBanner` (role=`alert`, aria-live=`assertive`) exibe a primeira mensagem de erro
+- Modal não fecha; `onSuccess` não é chamado
+- Qualquer alteração de campo limpa erros e toast imediatamente
+
+**Se válido:**
+- Gera protocolo via `generateProtocol()` → `GAR-XXXXX` (5 dígitos aleatórios)
+- `localStorage.removeItem(CHAMADO_DRAFT_KEY)`
+- `onSuccess(protocol)` → pai atualiza `pageToast` com "Protocolo #GAR-XXXXX aberto com sucesso"
+- Modal fecha via resposta do pai (não chama `onClose` diretamente)
+
+**`WarrantyPage` atualizada:**
+- Substituiu `OpenTicketModal` por `WarrantyClaimModal`
+- `PageToast` unificado exibe mensagens de sucesso e rascunho salvo
+- Prop `onDraftSaved` conectada a `handleDraftSaved()`
+
 ---
 
 ## Evolução planejada
@@ -475,4 +566,9 @@ Visual inativo: `border border-outline-variant/20 bg-surface-container-low`.
 | WCM-3.3 | `WarrantyClaimModal`: `<input type="date">` estilizado, `max=today` | ✅ Concluído |
 | WCM-4.1 | `WarrantyClaimModal`: `ReasonCard`, `REASON_CARDS`, 3 ícones SVG inline | ✅ Concluído |
 | WCM-4.2 | `WarrantyClaimModal`: toggle exclusivo `reason`, visual ativo teal | ✅ Concluído |
-| WCM-5.x | `WarrantyClaimModal`: seção "Evidências e Observações" (attachments) | 🔲 Pendente |
+| WCM-5.1 | `WarrantyClaimModal`: textarea `description`, contador 0/500, `resize-y` | ✅ Concluído |
+| WCM-5.2 | `WarrantyClaimModal`: `Dropzone` drag/drop, validação 10 MB, `uploadError` | ✅ Concluído |
+| WCM-5.3 | `WarrantyClaimModal`: `FilePreviewItem`, thumbnail, `revokeObjectURL`, botão X | ✅ Concluído |
+| WCM-6.1 | `WarrantyClaimModal`: `handleSaveDraft` com `attachmentNames`, `onDraftSaved`, `PageToast` | ✅ Concluído |
+| WCM-6.2 | `WarrantyClaimModal`: `validate()`, `handleConfirm`, ring coral, `ModalToastBanner`, `GAR-XXXXX` | ✅ Concluído |
+| WCM-6.x | `WarrantyPage`: substitui `OpenTicketModal` por `WarrantyClaimModal`, ligação completa | ✅ Concluído |

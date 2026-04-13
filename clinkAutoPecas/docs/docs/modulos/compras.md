@@ -29,7 +29,10 @@ src/pages/purchases/
 ├── exportOrdersToCsv.test.ts      ← Testes unitários (serializeOrdersToCsv, buildCsvFilename, exportOrdersToCsv)
 ├── purchases.types.ts             ← Interfaces e enums do domínio
 ├── mock-data.ts                   ← Array de ordens + objeto KPI mock
-└── mock-data.test.ts              ← Testes de integridade do mock
+├── mock-data.test.ts              ← Testes de integridade do mock
+├── PurchaseOrderFormModal.tsx     ← Modal de criação de nova ordem (fases POF-1.x+)
+├── PurchaseOrderFormModal.test.tsx← Testes do modal (23 casos)
+└── purchaseOrderFormMocks.ts      ← Tipos do formulário + mocks de suppliers e agents
 ```
 
 ---
@@ -76,11 +79,12 @@ type PurchasesKpiMock = {
 
 Componente raiz da rota `/compras`. Gerencia o estado local do módulo.
 
-**Estado local (etapa atual):**
+**Estado local:**
 
 | Variável | Tipo | Descrição |
 |---|---|---|
-| `searchQuery` | `string` | Texto do campo de busca global (visual nesta etapa) |
+| `searchQuery` | `string` | Texto do campo de busca global |
+| `modalOpen` | `boolean` | Controla visibilidade do `PurchaseOrderFormModal` |
 
 **Layout da página:**
 
@@ -367,6 +371,15 @@ onExportCsv={() => exportOrdersToCsv(filteredOrders, buildCsvFilename())}
 | ✅ 4.x | Busca com debounce 300ms (4.1) + filtros status/data inline (4.2) via `usePurchasesFilters` |
 | ✅ 5.x | Paginação local (5.1) + componente visual numerado `PurchasesPagination` (5.2) |
 | ✅ 6.x | Exportar CSV filtrado (6.1) + toast de confirmação respeitando filtro ativo (6.2) |
-| 7.x | Modal de criação de nova ordem (`PurchaseFormModal`) |
-| 7.x | Ordenação de colunas |
-| 8.x | Dados reais via API |
+| ✅ POF-1.1 | `PurchaseOrderFormModal`: overlay, dialog 1040px, header sem ícone, h2, subtítulo itálico `text-primary` (teal), botão X, Escape, click-outside |
+| ✅ POF-1.2 | `PurchaseOrderFormModal`: rodapé grid-cols-3 — CANCEL ORDER (ghost + `CornerUpLeftIcon`), SAVE DRAFT (secundário escuro), GENERATE ORDER (primário teal + `CheckCircleIcon`, disabled) |
+| ✅ POF-2.1 | `purchaseOrderFormMocks.ts`: `OrderItem`, `ComponentCatalogItem`, `PurchaseOrderForm` (strings), `computeSubtotal`, `computeTotal`, `INITIAL_ORDER_ITEMS`, `suppliersMock`/`employeesMock`/`componentCatalogMock` |
+| ✅ POF-2.2 | `PurchaseOrderFormModal`: restore de rascunho do `localStorage('purchase_order_draft')` + banner "Draft restored" |
+| ✅ POF-3.1 | `PurchaseOrderFormModal`: dropdowns Supplier Entity + Purchasing Agent (selects customizados, `suppliersMock`/`employeesMock`) |
+| ✅ POF-3.2 | `PurchaseOrderFormModal`: date pickers Issue Date (default `2023-10-27`) + Expected Delivery com validação ISO — borda coral + `role="alert"` se delivery ≤ issueDate |
+| POF-4.x | Tabela de itens: sku, descrição, qtd, preço unitário, subtotal, botão remover |
+| POF-5.x | Summary card: subtotal, est. logistics, estimated total |
+| POF-6.x | SAVE DRAFT — persistência em `localStorage` |
+| POF-7.x | GENERATE ORDER — validação completa + geração de `PUR-XXXXX` |
+| — | Ordenação de colunas na tabela principal |
+| — | Dados reais via API |

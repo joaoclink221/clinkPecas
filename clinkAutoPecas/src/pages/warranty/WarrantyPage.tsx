@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 
-import { OpenTicketModal } from './OpenTicketModal'
+import { WarrantyClaimModal } from './WarrantyClaimModal'
 import { PredictiveInsightsCard } from './PredictiveInsightsCard'
 import { PolicyGuideCard } from './PolicyGuideCard'
 import { ReturnsTable } from './ReturnsTable'
@@ -131,8 +131,13 @@ const SECONDARY_TABS = ['POST-SALES', 'COMPLIANCE'] as const
 
 // ── Toast de confirmação ────────────────────────────────────────────────────────
 
-function SuccessToast({ onDismiss }: { onDismiss: () => void }): ReactNode {
-  // Auto-dismiss após 4 s
+function PageToast({
+  message,
+  onDismiss,
+}: {
+  message: string
+  onDismiss: () => void
+}): ReactNode {
   useEffect(() => {
     const timer = setTimeout(onDismiss, 4000)
     return () => clearTimeout(timer)
@@ -148,9 +153,7 @@ function SuccessToast({ onDismiss }: { onDismiss: () => void }): ReactNode {
         <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
         <polyline points="6.5 10 9 12.5 13.5 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="text-body-sm font-semibold text-on-surface">
-        Chamado aberto com sucesso
-      </span>
+      <span className="text-body-sm font-semibold text-on-surface">{message}</span>
       <button
         type="button"
         onClick={onDismiss}
@@ -170,11 +173,15 @@ function SuccessToast({ onDismiss }: { onDismiss: () => void }): ReactNode {
 
 export function WarrantyPage(): ReactNode {
   const [modalOpen, setModalOpen] = useState(false)
-  const [toastVisible, setToastVisible] = useState(false)
+  const [pageToast, setPageToast] = useState<string | null>(null)
 
-  function handleTicketSuccess(): void {
+  function handleTicketSuccess(protocol: string): void {
     setModalOpen(false)
-    setToastVisible(true)
+    setPageToast(`Protocolo #${protocol} aberto com sucesso`)
+  }
+
+  function handleDraftSaved(): void {
+    setPageToast('Rascunho salvo')
   }
 
   return (
@@ -279,17 +286,17 @@ export function WarrantyPage(): ReactNode {
         </section>
       </div>
 
-      {/* ── Modal Abrir Chamado ────────────────────────────────────────────── */}
-      {modalOpen && (
-        <OpenTicketModal
-          onClose={() => setModalOpen(false)}
-          onSuccess={handleTicketSuccess}
-        />
-      )}
+      {/* ── Modal Abrir Chamado ────────────────────────────────────── */}
+      <WarrantyClaimModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSuccess={handleTicketSuccess}
+        onDraftSaved={handleDraftSaved}
+      />
 
-      {/* ── Toast de sucesso ─────────────────────────────────────────────── */}
-      {toastVisible && (
-        <SuccessToast onDismiss={() => setToastVisible(false)} />
+      {/* ── Toast de página (sucesso / rascunho) ───────────────────── */}
+      {pageToast && (
+        <PageToast message={pageToast} onDismiss={() => setPageToast(null)} />
       )}
     </div>
   )

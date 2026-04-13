@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { WarrantyClaimModal } from './WarrantyClaimModal'
 import {
@@ -192,9 +192,16 @@ describe('WarrantyClaimModal 1.2 — Rodapé de Ações', () => {
     expect(onSuccess).not.toHaveBeenCalled()
   })
 
-  it('"Confirmar Abertura" chama onSuccess', async () => {
+  it('"Confirmar Abertura" chama onSuccess com formulário válido', async () => {
     const { onSuccess } = renderModal()
 
+    await userEvent.selectOptions(screen.getByLabelText(/seleção de sku/i), 'OG-TB-001')
+    await userEvent.type(screen.getByLabelText(/data do incidente/i), '2024-03-15')
+    await userEvent.click(screen.getByRole('button', { name: /avaria/i }))
+    await userEvent.type(
+      screen.getByLabelText(/descrição do ocorrido/i),
+      'Peça chegou com dano visível na embalagem.',
+    )
     await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
 
     expect(onSuccess).toHaveBeenCalledOnce()
@@ -601,5 +608,422 @@ describe('WarrantyClaimModal 4.2 — Seleção Exclusiva de Motivo', () => {
 
     expect(screen.getByRole('button', { name: /incompatível/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: /avaria/i })).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+// ── 5.1 — Textarea de descrição ───────────────────────────────────────────────
+
+describe('WarrantyClaimModal 5.1 — Textarea de Descrição', () => {
+  it('renderiza o header da seção "Evidências e Observações"', () => {
+    renderModal()
+    expect(screen.getByText(/evidências e observações/i)).toBeInTheDocument()
+  })
+
+  it('exibe label "Descrição do Ocorrido" associada à textarea', () => {
+    renderModal()
+    expect(screen.getByLabelText(/descrição do ocorrido/i)).toBeInTheDocument()
+  })
+
+  it('textarea tem o placeholder correto', () => {
+    renderModal()
+    expect(screen.getByLabelText(/descrição do ocorrido/i)).toHaveAttribute(
+      'placeholder',
+      'Descreva detalhadamente o ocorrido ou defeito apresentado\u2026',
+    )
+  })
+
+  it('exibe contador "0/500" quando textarea está vazia', () => {
+    renderModal()
+    expect(screen.getByText('0/500')).toBeInTheDocument()
+  })
+
+  it('digitar na textarea atualiza o valor e o contador', async () => {
+    renderModal()
+    const textarea = screen.getByLabelText(/descrição do ocorrido/i)
+    await userEvent.type(textarea, 'Peça com defeito')
+    expect(textarea).toHaveValue('Peça com defeito')
+    expect(screen.getByText('16/500')).toBeInTheDocument()
+  })
+
+  it('textarea tem maxLength=500', () => {
+    renderModal()
+    expect(screen.getByLabelText(/descrição do ocorrido/i)).toHaveAttribute('maxLength', '500')
+  })
+
+  it('textarea é vazia no estado inicial (sem rascunho)', () => {
+    renderModal()
+    expect(screen.getByLabelText(/descrição do ocorrido/i)).toHaveValue('')
+  })
+})
+
+// ── 5.2 — Dropzone de arquivos ────────────────────────────────────────────────
+
+describe('WarrantyClaimModal 5.2 — Dropzone', () => {
+  beforeEach(() => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    localStorage.clear()
+  })
+
+  it('renderiza a área de upload com role="button"', () => {
+    renderModal()
+    expect(screen.getByRole('button', { name: /área de upload/i })).toBeInTheDocument()
+  })
+
+  it('exibe texto "Clique para anexar fotos ou arraste aqui"', () => {
+    renderModal()
+    expect(screen.getByText(/clique para anexar fotos ou arraste aqui/i)).toBeInTheDocument()
+  })
+
+  it('exibe sub-label com formatos e tamanho máximo', () => {
+    renderModal()
+    expect(screen.getByText(/PNG, JPG ou PDF/i)).toBeInTheDocument()
+  })
+
+  it('input file tem accept=".png,.jpg,.jpeg,.pdf" e atributo multiple', () => {
+    renderModal()
+    // Input é aria-hidden; acessado via document.querySelector
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    expect(input).toHaveAttribute('accept', '.png,.jpg,.jpeg,.pdf')
+    expect(input).toHaveAttribute('multiple')
+  })
+
+  it('arrastar arquivo PNG válido via onDrop adiciona ao estado', () => {
+    renderModal()
+    const file = new File(['content'], 'foto.png', { type: 'image/png' })
+    const dropzone = screen.getByRole('button', { name: /área de upload/i })
+    fireEvent.drop(dropzone, { dataTransfer: { files: [file] } })
+    expect(screen.getByText('foto.png')).toBeInTheDocument()
+  })
+
+  it('arrastar arquivo > 10 MB exibe mensagem de erro', () => {
+    renderModal()
+    const bigFile = new File(['x'], 'big.jpg', { type: 'image/jpeg' })
+    Object.defineProperty(bigFile, 'size', { value: 11 * 1024 * 1024 })
+    const dropzone = screen.getByRole('button', { name: /área de upload/i })
+    fireEvent.drop(dropzone, { dataTransfer: { files: [bigFile] } })
+    expect(screen.getByRole('alert')).toHaveTextContent(/tamanho máximo/i)
+  })
+
+  it('arquivo > 10 MB não é adicionado ao estado', () => {
+    renderModal()
+    const bigFile = new File(['x'], 'big.jpg', { type: 'image/jpeg' })
+    Object.defineProperty(bigFile, 'size', { value: 11 * 1024 * 1024 })
+    fireEvent.drop(screen.getByRole('button', { name: /área de upload/i }), {
+      dataTransfer: { files: [bigFile] },
+    })
+    expect(screen.queryByText('big.jpg')).not.toBeInTheDocument()
+  })
+
+  it('mistura válido + > 10 MB: válido adicionado, erro exibido', () => {
+    renderModal()
+    const valid = new File(['content'], 'ok.jpg', { type: 'image/jpeg' })
+    const big = new File(['x'], 'big.jpg', { type: 'image/jpeg' })
+    Object.defineProperty(big, 'size', { value: 11 * 1024 * 1024 })
+    fireEvent.drop(screen.getByRole('button', { name: /área de upload/i }), {
+      dataTransfer: { files: [valid, big] },
+    })
+    expect(screen.getByText('ok.jpg')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('selecionar arquivo válido via input onChange adiciona ao estado', () => {
+    renderModal()
+    const file = new File(['content'], 'via-input.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [file] } })
+    expect(screen.getByText('via-input.jpg')).toBeInTheDocument()
+  })
+
+  it('selecionar arquivo > 10 MB via input onChange exibe erro', () => {
+    renderModal()
+    const bigFile = new File(['x'], 'big-input.jpg', { type: 'image/jpeg' })
+    Object.defineProperty(bigFile, 'size', { value: 11 * 1024 * 1024 })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [bigFile] } })
+    expect(screen.getByRole('alert')).toHaveTextContent(/tamanho máximo/i)
+  })
+})
+
+// ── 5.3 — Preview dos arquivos anexados ──────────────────────────────────────
+
+describe('WarrantyClaimModal 5.3 — Preview de Arquivos', () => {
+  beforeEach(() => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    localStorage.clear()
+  })
+
+  function dropFile(file: File): void {
+    fireEvent.drop(screen.getByRole('button', { name: /área de upload/i }), {
+      dataTransfer: { files: [file] },
+    })
+  }
+
+  it('lista de preview não é exibida quando não há anexos', () => {
+    renderModal()
+    expect(screen.queryByRole('list', { name: /arquivos anexados/i })).not.toBeInTheDocument()
+  })
+
+  it('anexar arquivo exibe lista com o nome do arquivo', () => {
+    renderModal()
+    dropFile(new File(['content'], 'peca.jpg', { type: 'image/jpeg' }))
+    expect(screen.getByText('peca.jpg')).toBeInTheDocument()
+  })
+
+  it('exibe tamanho formatado em KB para arquivo pequeno', () => {
+    renderModal()
+    const file = new File(['x'.repeat(2048)], 'peca.jpg', { type: 'image/jpeg' })
+    dropFile(file)
+    expect(screen.getByText(/2 KB/)).toBeInTheDocument()
+  })
+
+  it('exibe tamanho formatado em MB para arquivo >= 1 MB', () => {
+    renderModal()
+    const file = new File(['content'], 'big.jpg', { type: 'image/jpeg' })
+    Object.defineProperty(file, 'size', { value: 2.4 * 1024 * 1024 })
+    dropFile(file)
+    expect(screen.getByText(/2\.4 MB/)).toBeInTheDocument()
+  })
+
+  it('exibe botão Remover com aria-label para cada arquivo', () => {
+    renderModal()
+    dropFile(new File(['content'], 'foto.jpg', { type: 'image/jpeg' }))
+    expect(screen.getByRole('button', { name: /remover foto\.jpg/i })).toBeInTheDocument()
+  })
+
+  it('clicar em X remove o arquivo da lista', async () => {
+    renderModal()
+    dropFile(new File(['content'], 'foto.jpg', { type: 'image/jpeg' }))
+    await userEvent.click(screen.getByRole('button', { name: /remover foto\.jpg/i }))
+    expect(screen.queryByText('foto.jpg')).not.toBeInTheDocument()
+  })
+
+  it('lista não é exibida após remover o único arquivo', async () => {
+    renderModal()
+    dropFile(new File(['content'], 'unico.jpg', { type: 'image/jpeg' }))
+    await userEvent.click(screen.getByRole('button', { name: /remover unico\.jpg/i }))
+    expect(screen.queryByRole('list', { name: /arquivos anexados/i })).not.toBeInTheDocument()
+  })
+
+  it('anexar 2 arquivos exibe ambos na lista', () => {
+    renderModal()
+    dropFile(new File(['a'], 'a.jpg', { type: 'image/jpeg' }))
+    dropFile(new File(['b'], 'b.pdf', { type: 'application/pdf' }))
+    expect(screen.getByText('a.jpg')).toBeInTheDocument()
+    expect(screen.getByText('b.pdf')).toBeInTheDocument()
+  })
+
+  it('remover primeiro arquivo mantém o segundo', async () => {
+    renderModal()
+    dropFile(new File(['a'], 'a.jpg', { type: 'image/jpeg' }))
+    dropFile(new File(['b'], 'b.jpg', { type: 'image/jpeg' }))
+    await userEvent.click(screen.getByRole('button', { name: /remover a\.jpg/i }))
+    expect(screen.queryByText('a.jpg')).not.toBeInTheDocument()
+    expect(screen.getByText('b.jpg')).toBeInTheDocument()
+  })
+
+  it('imagem exibe thumbnail via URL.createObjectURL', async () => {
+    renderModal()
+    dropFile(new File(['content'], 'img.jpg', { type: 'image/jpeg' }))
+    // <img alt="" aria-hidden> tem role="presentation"; query direta via DOM
+    await waitFor(() =>
+      expect(document.querySelector('img')).toHaveAttribute('src', 'blob:mock-url'),
+    )
+  })
+
+  it('URL.revokeObjectURL é chamado ao desmontar o preview de imagem', async () => {
+    renderModal()
+    dropFile(new File(['content'], 'revogar.jpg', { type: 'image/jpeg' }))
+    await waitFor(() => expect(document.querySelector('img')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: /remover revogar\.jpg/i }))
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+  })
+})
+
+// ── 6.1 — Salvar Rascunho ────────────────────────────────────────────────────
+
+describe('WarrantyClaimModal 6.1 — Salvar Rascunho', () => {
+  afterEach(() => localStorage.clear())
+
+  it('salvar com campos vazios persiste no localStorage com status "draft"', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /salvar rascunho/i }))
+    const saved = JSON.parse(localStorage.getItem(CHAMADO_DRAFT_KEY) ?? '{}')
+    expect(saved.status).toBe('draft')
+  })
+
+  it('salvar com apenas SKU preenchido persiste o skuId', async () => {
+    renderModal()
+    await userEvent.selectOptions(screen.getByLabelText(/seleção de sku/i), 'OG-TB-001')
+    await userEvent.click(screen.getByRole('button', { name: /salvar rascunho/i }))
+    const saved = JSON.parse(localStorage.getItem(CHAMADO_DRAFT_KEY) ?? '{}')
+    expect(saved.skuId).toBe('OG-TB-001')
+  })
+
+  it('rascunho salvo com SKU é restaurado ao reabrir o modal', async () => {
+    const { rerender } = render(
+      <WarrantyClaimModal open={true} onClose={vi.fn()} onSuccess={vi.fn()} />,
+    )
+    await userEvent.selectOptions(screen.getByLabelText(/seleção de sku/i), 'OG-IJ-992')
+    await userEvent.click(screen.getByRole('button', { name: /salvar rascunho/i }))
+
+    rerender(<WarrantyClaimModal open={false} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    rerender(<WarrantyClaimModal open={true} onClose={vi.fn()} onSuccess={vi.fn()} />)
+
+    expect(screen.getByLabelText<HTMLSelectElement>(/seleção de sku/i).value).toBe('OG-IJ-992')
+  })
+
+  it('persiste campo savedAt no localStorage', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /salvar rascunho/i }))
+    const saved = JSON.parse(localStorage.getItem(CHAMADO_DRAFT_KEY) ?? '{}')
+    expect(typeof saved.savedAt).toBe('string')
+    expect(saved.savedAt).toBeTruthy()
+  })
+
+  it('persiste attachmentNames (array de strings) em vez de objetos File', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url')
+    renderModal()
+    const file = new File(['x'], 'evidencia.jpg', { type: 'image/jpeg' })
+    fireEvent.drop(screen.getByRole('button', { name: /área de upload/i }), {
+      dataTransfer: { files: [file] },
+    })
+    await userEvent.click(screen.getByRole('button', { name: /salvar rascunho/i }))
+    const saved = JSON.parse(localStorage.getItem(CHAMADO_DRAFT_KEY) ?? '{}')
+    expect(saved.attachmentNames).toEqual(['evidencia.jpg'])
+    expect(saved.attachments).toBeUndefined()
+    vi.restoreAllMocks()
+  })
+
+  it('chama onDraftSaved quando fornecido', async () => {
+    const onDraftSaved = vi.fn()
+    renderModal({ onDraftSaved })
+    await userEvent.click(screen.getByRole('button', { name: /salvar rascunho/i }))
+    expect(onDraftSaved).toHaveBeenCalledOnce()
+  })
+
+  it('chama onClose após salvar', async () => {
+    const { onClose } = renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /salvar rascunho/i }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('NÃO chama onSuccess ao salvar rascunho', async () => {
+    const { onSuccess } = renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /salvar rascunho/i }))
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+})
+
+// ── 6.2 — Confirmar Abertura ──────────────────────────────────────────────────
+
+describe('WarrantyClaimModal 6.2 — Confirmar Abertura', () => {
+  afterEach(() => localStorage.clear())
+
+  async function fillValidForm(): Promise<void> {
+    await userEvent.selectOptions(screen.getByLabelText(/seleção de sku/i), 'OG-TB-001')
+    await userEvent.type(screen.getByLabelText(/data do incidente/i), '2024-03-15')
+    await userEvent.click(screen.getByRole('button', { name: /avaria/i }))
+    await userEvent.type(
+      screen.getByLabelText(/descrição do ocorrido/i),
+      'Peça chegou com dano visível na embalagem e no produto.',
+    )
+  }
+
+  it('submeter sem nenhum campo exibe toast de erro dentro do modal', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('submeter sem SKU e sem data exibe mensagem sobre identificação', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/selecione o item/i)
+  })
+
+  it('submeter sem motivo exibe mensagem sobre motivo', async () => {
+    renderModal()
+    await userEvent.selectOptions(screen.getByLabelText(/seleção de sku/i), 'OG-TB-001')
+    await userEvent.type(screen.getByLabelText(/data do incidente/i), '2024-03-15')
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/motivo/i)
+  })
+
+  it('submeter com descrição < 20 chars exibe mensagem sobre descrição', async () => {
+    renderModal()
+    await userEvent.selectOptions(screen.getByLabelText(/seleção de sku/i), 'OG-TB-001')
+    await userEvent.type(screen.getByLabelText(/data do incidente/i), '2024-03-15')
+    await userEvent.click(screen.getByRole('button', { name: /avaria/i }))
+    await userEvent.type(screen.getByLabelText(/descrição do ocorrido/i), 'Curta')
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/20 caracteres/i)
+  })
+
+  it('submeter sem motivo NÃO fecha o modal', async () => {
+    const { onClose } = renderModal()
+    await userEvent.selectOptions(screen.getByLabelText(/seleção de sku/i), 'OG-TB-001')
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('submeter sem motivo NÃO chama onSuccess', async () => {
+    const { onSuccess } = renderModal()
+    await userEvent.selectOptions(screen.getByLabelText(/seleção de sku/i), 'OG-TB-001')
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('corrigir campo após erro remove o toast de erro', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /avaria/i }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('formulário válido chama onSuccess com protocolo no formato GAR-XXXXX', async () => {
+    const { onSuccess } = renderModal()
+    await fillValidForm()
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(onSuccess).toHaveBeenCalledOnce()
+    const [protocol] = (onSuccess as ReturnType<typeof vi.fn>).mock.calls[0] as [string]
+    expect(protocol).toMatch(/^GAR-\d{5}$/)
+  })
+
+  it('formulário válido limpa o rascunho do localStorage', async () => {
+    localStorage.setItem(CHAMADO_DRAFT_KEY, JSON.stringify({ status: 'draft' }))
+    renderModal()
+    await fillValidForm()
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(localStorage.getItem(CHAMADO_DRAFT_KEY)).toBeNull()
+  })
+
+  it('formulário válido NÃO chama onClose diretamente', async () => {
+    const { onClose } = renderModal()
+    await fillValidForm()
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('reabrir modal após confirmação válida reseta validationErrors', async () => {
+    const { rerender } = render(
+      <WarrantyClaimModal open={true} onClose={vi.fn()} onSuccess={vi.fn()} />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: /confirmar abertura/i }))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+
+    rerender(<WarrantyClaimModal open={false} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    rerender(<WarrantyClaimModal open={true} onClose={vi.fn()} onSuccess={vi.fn()} />)
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
